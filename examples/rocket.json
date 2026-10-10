@@ -1,1 +1,14 @@
-{"title":"An intention, ready for launch","explanation":"A rocket forms from light: body, nose cone, fins, and exhaust. A procedural construct for exploring an idea before it becomes a detailed asset.","objects":[{"id":"rocket","shape":"rocket","label":"Launch vehicle","scale":1.5,"description":"A cylinder body with a tapered nose, three fins, and an illustrative exhaust plume."}],"connections":[]}
+{
+  "title": "An intention, ready for launch",
+  "explanation": "A rocket forms from light: body, nose cone, fins, and exhaust. A procedural construct for exploring an idea before it becomes a detailed asset.",
+  "objects": [
+    {
+      "id": "rocket",
+      "shape": "rocket",
+      "label": "Launch vehicle",
+      "scale": 1.5,
+      "description": "A cylinder body with a tapered nose, three fins, and an illustrative exhaust plume."
+    }
+  ],
+  "connections": []
+}

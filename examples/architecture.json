@@ -2,9 +2,33 @@
   "title": "Follow a request",
   "explanation": "A browser sends a request to the API. The API reads or writes the database, then returns a response. These constructs illustrate the flow; they are not a live trace.",
   "objects": [
-    {"id": "browser", "shape": "box", "label": "Browser", "description": "The interface a person interacts with. It sends requests to the API.", "position": [-5, 0, 0], "scale": 1.2},
-    {"id": "api", "shape": "sphere", "label": "API", "description": "The server applies business logic and mediates access to stored data.", "position": [0, 0, 0], "scale": 1.2},
-    {"id": "database", "shape": "cylinder", "label": "Database", "description": "Persistent storage. Click this construct to focus the camera.", "position": [5, 0, 0], "scale": 1.2}
+    {
+      "id": "browser",
+      "shape": "box",
+      "label": "Browser",
+      "description": "The interface a person interacts with. It sends requests to the API.",
+      "position": [-5, 0, 0],
+      "scale": 1.2
+    },
+    {
+      "id": "api",
+      "shape": "sphere",
+      "label": "API",
+      "description": "The server applies business logic and mediates access to stored data.",
+      "position": [0, 0, 0],
+      "scale": 1.2
+    },
+    {
+      "id": "database",
+      "shape": "cylinder",
+      "label": "Database",
+      "description": "Persistent storage. Click this construct to focus the camera.",
+      "position": [5, 0, 0],
+      "scale": 1.2
+    }
   ],
-  "connections": [{"from": "browser", "to": "api", "label": "request"}, {"from": "api", "to": "database", "label": "query"}]
+  "connections": [
+    { "from": "browser", "to": "api", "label": "request" },
+    { "from": "api", "to": "database", "label": "query" }
+  ]
 }

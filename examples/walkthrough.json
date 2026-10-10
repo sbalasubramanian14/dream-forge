@@ -1,0 +1,104 @@
+{
+  "title": "Explore an agent-authored explanation",
+  "explanation": "The agent defines the controls. Start the explanation, inspect a hotspot, or choose a different viewpoint.",
+  "objects": [{ "id": "assembly", "shape": "rocket", "label": "Launch vehicle", "scale": 1.5 }],
+  "actions": [
+    { "id": "next", "label": "Next step", "action": { "type": "next" } },
+    { "id": "back", "label": "Previous", "action": { "type": "previous" } },
+    {
+      "id": "side",
+      "label": "Side view",
+      "placement": "screen",
+      "position": [0.84, 0.35],
+      "action": { "type": "camera", "settings": { "view": "right" } }
+    },
+    {
+      "id": "spin",
+      "label": "Orbit slowly",
+      "action": {
+        "type": "camera",
+        "settings": { "view": "isometric", "auto_rotate": true, "speed": 12 }
+      }
+    }
+  ],
+  "steps": [
+    {
+      "title": "1. The body carries the payload",
+      "explanation": "An agent can introduce one part at a time. Click Inspect body to move closer, or go to the next step.",
+      "objects": [
+        {
+          "id": "body",
+          "shape": "cylinder",
+          "label": "Body",
+          "scale": 1.4,
+          "description": "A simplified rocket body, shown as a cylindrical construct."
+        }
+      ],
+      "actions": [
+        { "id": "next", "label": "Next step", "action": { "type": "next" } },
+        { "id": "back", "label": "Previous", "action": { "type": "previous" } },
+        {
+          "id": "inspect",
+          "label": "Inspect body",
+          "placement": "object",
+          "object_id": "body",
+          "action": {
+            "type": "camera",
+            "settings": { "target_id": "body", "view": "isometric", "zoom": 1.5 }
+          }
+        }
+      ]
+    },
+    {
+      "title": "2. A tapered nose completes the outline",
+      "explanation": "The scene expands while retaining stable object IDs. These controls are authored for this step, not built into the application.",
+      "objects": [
+        { "id": "body", "shape": "cylinder", "label": "Body", "scale": 1.4 },
+        { "id": "nose", "shape": "cone", "label": "Nose", "scale": 1.4, "position": [0, 2.8, 0] }
+      ],
+      "camera": { "view": "isometric" },
+      "actions": [
+        { "id": "next", "label": "Next step", "action": { "type": "next" } },
+        { "id": "back", "label": "Previous", "action": { "type": "previous" } },
+        {
+          "id": "inspect",
+          "label": "Inspect nose",
+          "placement": "object",
+          "object_id": "nose",
+          "action": { "type": "focus", "object_id": "nose" }
+        },
+        {
+          "id": "top",
+          "label": "Look from above",
+          "placement": "screen",
+          "position": [0.84, 0.35],
+          "action": { "type": "camera", "settings": { "view": "top" } }
+        }
+      ]
+    },
+    {
+      "title": "3. Explore the complete construct",
+      "explanation": "Orbit the completed vehicle, return to the overview, or leave a question for the agent. Recorded questions are available to the agent through get_scene.",
+      "objects": [{ "id": "assembly", "shape": "rocket", "label": "Launch vehicle", "scale": 1.5 }],
+      "actions": [
+        { "id": "back", "label": "Previous", "action": { "type": "previous" } },
+        { "id": "restart", "label": "Start again", "action": { "type": "goto", "index": 0 } },
+        {
+          "id": "orbit",
+          "label": "Orbit this",
+          "placement": "object",
+          "object_id": "assembly",
+          "action": {
+            "type": "camera",
+            "settings": { "view": "isometric", "auto_rotate": true, "speed": 12 }
+          }
+        },
+        {
+          "id": "question",
+          "label": "Explain the fins",
+          "action": { "type": "notify", "message": "Please explain the fins on the rocket." }
+        }
+      ]
+    }
+  ]
+}

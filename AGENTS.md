@@ -11,3 +11,6 @@ Dream Forge is a local agent-driven particle canvas. Keep scene rendering indepe
 - Verify visuals in a real headed browser for rendering changes. Exercise idle, assembly, scene replacement, focus, pause, and dissolve.
 - Keep the dark particle-first canvas spacious. Labels and controls should support understanding without obscuring constructs.
 - Describe procedural visuals and metaphors honestly; do not claim Gaussian reconstruction, live traces, or physical accuracy.
+- Keep camera behavior in `web/camera-controller.js`, control rendering in `web/interactions.js`, and pure action/state transitions in `src/state.js`.
+- Extend the discriminated action schema, registry, and behavioral tests together for new actions. Keep snapshots immutable and preserve validation before mutation.
+- Format with `npm run format`; verify with `npm run format:check`. Browser tests use their own server on port 4319 and must not modify the user's live canvas.

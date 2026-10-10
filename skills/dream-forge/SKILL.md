@@ -19,4 +19,6 @@ Space objects explicitly with `position`. All omitted positions default to the o
 
 Read the existing scene before replacing it when continuity matters. `show_scene` replaces the whole scene. Focus the relevant object after showing it. Summarize the explanation in text and give the user the canvas URL returned by the tool.
 
+Use `set_camera` to choose a side, top, or isometric view, automatically fit a target, zoom relative to its bounds, or orbit it slowly. Let the human interrupt camera motion. Author `actions` for toolbar buttons, screen buttons, or object hotspots when exploration helps. Author `steps` as snapshots for a guided explanation and connect them with next/previous/goto actions. Read the reference for the interaction contract. `notify` records a user intent; it does not wake the agent automatically. Inspect `get_scene.interactions` before responding to a click-driven request.
+
 A tool success means a scene was accepted, not that visual QA passed. Inspect the browser when possible. Distinguish illustrative metaphors from real data or simulations. Do not present internal hidden reasoning as visible content; visualize the user-facing explanation and proposed actions.

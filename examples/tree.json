@@ -1,1 +1,14 @@
-{"title":"A thought branches outward","explanation":"A branching tree assembled from points. Follow the trunk into smaller branches and a layered canopy. A procedural illustration, not a botanical model.","objects":[{"id":"tree","shape":"tree","label":"Branching structure","description":"A trunk, nine branches, and clusters of leaves. Agents can use this construct as a metaphor for branching choices.","scale":1.5}],"connections":[]}
+{
+  "title": "A thought branches outward",
+  "explanation": "A branching tree assembled from points. Follow the trunk into smaller branches and a layered canopy. A procedural illustration, not a botanical model.",
+  "objects": [
+    {
+      "id": "tree",
+      "shape": "tree",
+      "label": "Branching structure",
+      "description": "A trunk, nine branches, and clusters of leaves. Agents can use this construct as a metaphor for branching choices.",
+      "scale": 1.5
+    }
+  ],
+  "connections": []
+}

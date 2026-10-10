@@ -1,6 +1,6 @@
 {
   "name": "@sbalasubramanian14/dream-forge",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A local particle canvas where AI agents forge explanations into 3D constructs.",
   "type": "module",
   "private": true,
@@ -16,7 +16,9 @@
     "test": "node --test test/*.test.js",
     "test:browser": "playwright test --headed",
     "preview": "node scripts/preview.js",
-    "mcp": "node bin/dream-forge.js mcp"
+    "mcp": "node bin/dream-forge.js mcp",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",
@@ -28,6 +30,8 @@
     "url": "https://github.com/sbalasubramanian14/dream-forge.git"
   },
   "devDependencies": {
-    "@playwright/test": "^1.64.0"
+    "@playwright/test": "^1.64.0",
+    "pngjs": "^7.0.0",
+    "prettier": "^3.9.10"
   }
 }

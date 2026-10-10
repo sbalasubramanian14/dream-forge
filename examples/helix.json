@@ -1,6 +1,14 @@
 {
   "title": "Two paths, intertwined",
   "explanation": "A stylized double helix. Rotate to explore the structure. This is a visual metaphor, not an atomically accurate molecular model.",
-  "objects": [{"id": "helix", "shape": "helix", "label": "Double helix", "description": "Two spiraling strands joined by rungs.", "scale": 1.8}],
+  "objects": [
+    {
+      "id": "helix",
+      "shape": "helix",
+      "label": "Double helix",
+      "description": "Two spiraling strands joined by rungs.",
+      "scale": 1.8
+    }
+  ],
   "connections": []
 }
