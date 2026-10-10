@@ -10,6 +10,8 @@ export function createInteractionControls({ layer, toolbar, notice, send }) {
     for (const hotspot of hotspots) hotspot.element.remove();
     hotspots = [];
     for (const interaction of snapshot.actions || []) {
+      if (state.scene.steps.length && ['next', 'previous'].includes(interaction.action.type))
+        continue;
       const button = document.createElement('button');
       button.textContent = interaction.label;
       button.dataset.actionId = interaction.id;

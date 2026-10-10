@@ -75,10 +75,26 @@ function projectBounds(bounds, camera, width, height) {
 }
 
 /** Shared layout for object labels, connection captions, and object-attached controls. */
-export function createAnnotations(layer) {
+export function createAnnotations(
+  layer,
+  { storageKey = 'dream-forge-labels', onHighlight = () => {} } = {},
+) {
   let items = [];
   let svg;
   let lastLayout = -Infinity;
+  let pinned = {};
+  try {
+    pinned = JSON.parse(localStorage.getItem(storageKey) || '{}');
+  } catch {
+    /* Optional local preferences. */
+  }
+  function save() {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(pinned));
+    } catch {
+      /* Storage can be disabled. */
+    }
+  }
 
   function setItems(next) {
     svg?.remove();
@@ -93,7 +109,51 @@ export function createAnnotations(layer) {
       item.element.dataset.label = item.element.textContent;
       item.element.setAttribute('aria-label', item.element.textContent);
       item.element.title = item.element.textContent;
-      return { ...item, line, offset: null };
+      const entry = { ...item, line, offset: null, pin: pinned[item.key] };
+      if (item.objectId && item.element.classList.contains('label')) {
+        item.element.onpointerenter = () => onHighlight(item.objectId);
+        item.element.onpointerleave = () => onHighlight(null);
+        let drag = null;
+        item.element.onpointerdown = (event) => {
+          if (event.button !== 0) return;
+          event.stopPropagation();
+          const rect = item.element.getBoundingClientRect();
+          drag = {
+            x: event.clientX,
+            y: event.clientY,
+            left: rect.left,
+            top: rect.top,
+            moved: false,
+          };
+          item.element.setPointerCapture(event.pointerId);
+        };
+        item.element.onpointermove = (event) => {
+          if (!drag) return;
+          const dx = event.clientX - drag.x,
+            dy = event.clientY - drag.y;
+          if (Math.hypot(dx, dy) < 5 && !drag.moved) return;
+          drag.moved = true;
+          entry.pin = [
+            Math.max(12, Math.min(innerWidth - item.element.offsetWidth - 12, drag.left + dx)) /
+              innerWidth,
+            Math.max(60, Math.min(innerHeight - item.element.offsetHeight - 80, drag.top + dy)) /
+              innerHeight,
+          ];
+          lastLayout = -Infinity;
+        };
+        const finish = () => {
+          if (drag?.moved) {
+            pinned[item.key] = entry.pin;
+            save();
+            item.element.dataset.dragged = 'true';
+            setTimeout(() => delete item.element.dataset.dragged, 0);
+          }
+          drag = null;
+        };
+        item.element.onpointerup = finish;
+        item.element.onpointercancel = finish;
+      }
+      return entry;
     });
     lastLayout = -Infinity;
   }
@@ -105,13 +165,28 @@ export function createAnnotations(layer) {
     const area = { left: 12, top: 12, right: width - 12, bottom: height - 12 };
     const boxes = new Map();
     for (const [id, box] of bounds) boxes.set(id, projectBounds(box, camera, width, height));
-    const obstacles = [...boxes.values()].filter(Boolean).concat(reserved);
+    // Boundary interiors are usable space; treating them as solid obstacles pushed labels far away.
+    const boundaryIds = new Set(items.filter((i) => i.boundary).map((i) => i.objectId));
+    const obstacles = [...boxes]
+      .filter(([id]) => !boundaryIds.has(id))
+      .map(([, box]) => box)
+      .filter(Boolean)
+      .concat(reserved);
     const ordered = [...items].sort(
       (a, b) => Number(b.objectId === focus) - Number(a.objectId === focus),
     );
     for (const item of ordered) {
       const anchor = projectPoint(item.point, camera, width, height);
       anchor.box = boxes.get(item.objectId);
+      if (item.boundary && anchor.box) {
+        anchor.x = anchor.box.left + 16;
+        anchor.y = anchor.box.top;
+      }
+      if (item.visible === false) {
+        item.element.hidden = true;
+        item.line.style.display = 'none';
+        continue;
+      }
       item.element.hidden = !anchor.visible;
       item.line.style.display = 'none';
       if (!anchor.visible) continue;
@@ -124,7 +199,12 @@ export function createAnnotations(layer) {
       item.element.classList.toggle('is-compact', compact);
       const size = { width: item.element.offsetWidth, height: item.element.offsetHeight };
       const preferred = item.offset && [anchor.x + item.offset[0], anchor.y + item.offset[1]];
-      let rect = placeAnnotation(anchor, size, obstacles, area, preferred);
+      let rect;
+      if (entryPinValid(item.pin)) {
+        const left = Math.max(area.left, Math.min(area.right - size.width, item.pin[0] * width));
+        const top = Math.max(area.top, Math.min(area.bottom - size.height, item.pin[1] * height));
+        rect = { left, top, right: left + size.width, bottom: top + size.height };
+      } else rect = placeAnnotation(anchor, size, obstacles, area, preferred);
       if (!rect && item.element.tagName === 'BUTTON') {
         item.element.classList.add('is-compact');
         rect = placeAnnotation(anchor, { width: 14, height: 14 }, obstacles, area);
@@ -147,5 +227,25 @@ export function createAnnotations(layer) {
     }
   }
 
-  return { setItems, update };
+  return {
+    setItems,
+    update,
+    reset() {
+      pinned = {};
+      save();
+      for (const item of items) {
+        item.pin = null;
+        item.offset = null;
+      }
+      lastLayout = -Infinity;
+    },
+    setVisibility(predicate) {
+      for (const item of items) item.visible = predicate(item);
+      lastLayout = -Infinity;
+    },
+  };
+}
+
+function entryPinValid(pin) {
+  return Array.isArray(pin) && pin.length === 2 && pin.every(Number.isFinite);
 }

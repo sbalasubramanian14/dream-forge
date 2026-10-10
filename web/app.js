@@ -1,13 +1,15 @@
 import * as THREE from 'three';
 import { OrbitControls } from '/OrbitControls.js';
 import { randomGenerator, shapePoint } from '/geometry.js';
-import { constructs } from '/catalog.js';
 import { createCameraController } from '/camera-controller.js';
 import { createInteractionControls } from '/interactions.js';
 import { createParticleField } from '/particle-field.js';
 import { createAnnotations } from '/annotations.js';
 import { createParticleTransition } from '/particle-transition.js';
 import { createHistory } from '/history.js';
+import { createViewerControls } from '/viewer-controls.js';
+import { createJourney } from '/journey.js';
+import { createDiagram } from '/diagram.js';
 
 const $ = (id) => document.getElementById(id);
 const viewport = $('viewport'),
@@ -26,6 +28,7 @@ let paused = reduced,
   revision = -1,
   cameraRevision = -1,
   sceneRevision = -1;
+let localInspection = false;
 const camera = new THREE.PerspectiveCamera(48, innerWidth / innerHeight, 0.1, 1000);
 camera.position.set(0, 3, 19);
 const scene = new THREE.Scene();
@@ -85,10 +88,17 @@ const material = new THREE.PointsMaterial({
   map: texture,
   vertexColors: true,
   transparent: true,
-  opacity: 0.85,
+  opacity: 0.98,
   blending: THREE.AdditiveBlending,
   depthWrite: false,
 });
+material.onBeforeCompile = (shader) => {
+  shader.vertexShader = 'attribute float visibility;\n' + shader.vertexShader;
+  shader.vertexShader = shader.vertexShader.replace(
+    '#include <color_vertex>',
+    '#include <color_vertex>\nvColor *= visibility;',
+  );
+};
 const particleTransition = createParticleTransition({
   positions,
   targets,
@@ -101,6 +111,8 @@ cloud.frustumCulled = false;
 scene.add(cloud);
 const particleField = createParticleField();
 scene.add(particleField.points);
+const diagram = createDiagram({ scene, camera, geometry, count });
+const journey = createJourney({ scene, texture, onHighlight: (id) => diagram.active(id) });
 let labels = [],
   edges = [],
   flows = [],
@@ -122,8 +134,18 @@ async function send(path, body) {
     error(e.message);
   }
 }
-function focus(id) {
-  send('focus', { id });
+function inspect(id, explanation = false) {
+  localInspection = true;
+  diagram.select(id);
+  viewer.selection(id);
+  $('detail').hidden = !id && !explanation;
+  $('detail-title').textContent = explanation
+    ? current.title
+    : current.objects.find((o) => o.id === id)?.label || id || '';
+  $('detail-body').textContent = explanation
+    ? current.explanation
+    : current.objects.find((o) => o.id === id)?.description ||
+      'No additional description provided.';
 }
 const history = createHistory({
   button: $('history-toggle'),
@@ -133,9 +155,61 @@ const history = createHistory({
   sessionLabel: $('session-label'),
   send,
 });
-const annotations = createAnnotations(labelLayer);
+const annotations = createAnnotations(labelLayer, {
+  storageKey: 'dream-forge-labels:' + sessionId,
+  onHighlight: (id) => diagram.hover(id),
+});
+const viewer = createViewerControls({
+  send,
+  onFit: (id) => frame(id, { ...cameraCommand, target_id: id, zoom: 1, auto_rotate: false }),
+  onZoom: (factor) => cameraController.zoom(factor),
+  onMode: (mode) => cameraController.setMode(mode),
+  onResetLabels: () => annotations.reset(),
+  onInspect: inspect,
+  onIsolate: (id) => {
+    diagram.isolate(id);
+    refreshVisibility();
+    if (id) frame(null);
+  },
+  onLayers: (filters) => {
+    diagram.filters(filters);
+    refreshVisibility();
+  },
+});
+function refreshVisibility() {
+  particleField.points.visible = viewer.filters.background;
+  for (const flow of flows) {
+    const c = flow.userData.connection;
+    flow.visible =
+      diagram.visible(c.from) &&
+      diagram.visible(c.to) &&
+      viewer.filters[c.kind === 'relationship' ? 'relationships' : c.kind];
+    flow.userData.track.visible = flow.visible;
+  }
+  annotations.setVisibility((item) => {
+    if (item.connection) {
+      const c = item.connection;
+      return (
+        viewer.filters.labels &&
+        diagram.visible(c.from) &&
+        diagram.visible(c.to) &&
+        viewer.filters[c.kind === 'relationship' ? 'relationships' : c.kind]
+      );
+    }
+    return (
+      (!item.element.classList.contains('label') || viewer.filters.labels) &&
+      (!item.objectId || diagram.visible(item.objectId))
+    );
+  });
+  journey.visibility(
+    viewer.filters.traffic &&
+      (!current?.journey || current.journey.path.every((id) => diagram.visible(id))),
+  );
+}
 const annotationPanels = [
-  ...document.querySelectorAll('header, .caption, footer, #detail, #notice, #history-panel'),
+  ...document.querySelectorAll(
+    'header, .caption, footer, #detail, #notice, #history-panel, .utility-panel, #journey-controls',
+  ),
 ];
 const interactionControls = createInteractionControls({
   layer: labelLayer,
@@ -145,6 +219,10 @@ const interactionControls = createInteractionControls({
 });
 function updateProjection() {
   camera.aspect = innerWidth / innerHeight;
+  document.documentElement.style.setProperty(
+    '--footer-height',
+    document.querySelector('footer').getBoundingClientRect().height + 'px',
+  );
   const caption = document.querySelector('.caption').getBoundingClientRect();
   const top = document.querySelector('header').getBoundingClientRect().bottom + 16;
   const left = 32,
@@ -163,14 +241,15 @@ function updateProjection() {
   camera.updateProjectionMatrix();
   return { width: Math.max(100, right - left), height: bottom - top, viewportHeight: innerHeight };
 }
-function frame(id = null) {
+function frame(id = null, settings = cameraCommand) {
   const area = updateProjection();
   const objects = current?.objects || [];
-  const selected = id ? objects.filter((o) => o.id === id) : objects;
+  const selected = objects.filter((o) => (id ? o.id === id : diagram.visible(o.id)));
   const bounds = new THREE.Box3();
   for (const o of selected) bounds.union(objectBounds.get(o.id));
   if (!id)
     for (const connection of current?.connections || []) {
+      if (!diagram.visible(connection.from) || !diagram.visible(connection.to)) continue;
       const a = objects.find((o) => o.id === connection.from),
         b = objects.find((o) => o.id === connection.to);
       const middle = new THREE.Vector3(...a.position).lerp(new THREE.Vector3(...b.position), 0.5);
@@ -179,13 +258,7 @@ function frame(id = null) {
     }
   if (!selected.length)
     bounds.setFromCenterAndSize(new THREE.Vector3(), new THREE.Vector3(12, 8, 10));
-  cameraController.fit(bounds, area, cameraCommand, paused);
-  const o = objects.find((o) => o.id === id);
-  $('detail').hidden = !o;
-  if (o) {
-    $('detail-title').textContent = o.label || o.id;
-    $('detail-body').textContent = o.description || 'No additional description provided.';
-  }
+  cameraController.fit(bounds, area, settings, paused);
 }
 function apply(state) {
   if (state.revision === revision) return;
@@ -195,10 +268,15 @@ function apply(state) {
   const changed =
     JSON.stringify(display) !== JSON.stringify(current) || state.scene_revision !== sceneRevision;
   current = display;
+  particleField.intensity(current.objects.length ? 0.24 : 0.65);
   history.render(state);
+  viewer.render(state);
   $('title').textContent = current.title;
   $('explanation').textContent = current.explanation;
   if (changed) {
+    localInspection = false;
+    viewer.selection(null);
+    $('detail').hidden = true;
     labelLayer.replaceChildren();
     labels = [];
     edges = [];
@@ -206,12 +284,15 @@ function apply(state) {
     for (const flow of flows) {
       flow.geometry.dispose();
       flow.material.dispose();
+      flow.userData.track.geometry.dispose();
+      flow.userData.track.material.dispose();
     }
     flows = [];
     flowGroup.clear();
     targets.set(idle);
     for (let i = 0; i < count; i++) desiredColors.set([0.16, 0.38, 0.48], i * 3);
     const per = current.objects.length ? Math.floor((count * 0.85) / current.objects.length) : 0;
+    const ranges = [];
     current.objects.forEach((o, objectIndex) => {
       let seed = 0;
       for (const c of o.id) seed = (seed * 31 + c.charCodeAt(0)) | 0;
@@ -231,7 +312,7 @@ function apply(state) {
           .add(new THREE.Vector3(...o.position));
         targets.set(world.toArray(), j);
         bounds.expandByPoint(world);
-        const brightness = 0.55 + rng() * 0.65;
+        const brightness = o.role === 'boundary' ? 1 : 0.75 + rng() * 0.5;
         desiredColors.set([color.r * brightness, color.g * brightness, color.b * brightness], j);
       }
       if (o.shape === 'pointcloud')
@@ -246,13 +327,23 @@ function apply(state) {
       const element = document.createElement('button');
       element.className = 'label';
       element.textContent = o.label || o.id;
-      element.addEventListener('click', () => focus(o.id));
+      element.addEventListener('click', () => {
+        if (!element.dataset.dragged) inspect(o.id);
+      });
       if (o.show_label !== false) {
         labelLayer.append(element);
-        labels.push({ element, point: anchor, objectId: o.id });
+        labels.push({
+          element,
+          point: anchor,
+          objectId: o.id,
+          boundary: o.role === 'boundary',
+          key: current.title + ':' + o.id,
+        });
       }
       objectBounds.set(o.id, bounds);
+      ranges.push({ id: o.id, start: objectIndex * per, end: (objectIndex + 1) * per });
     });
+    diagram.set(current, objectBounds, ranges);
     for (const connection of current.connections) {
       const a = current.objects.find((o) => o.id === connection.from),
         b = current.objects.find((o) => o.id === connection.to);
@@ -266,7 +357,12 @@ function apply(state) {
       const points = new THREE.Points(
         g,
         new THREE.PointsMaterial({
-          color: '#70e0ed',
+          color:
+            connection.kind === 'configuration'
+              ? '#ba9ade'
+              : connection.kind === 'traffic'
+                ? '#ffd28a'
+                : '#70b3bf',
           size: 0.13,
           map: texture,
           transparent: true,
@@ -275,6 +371,18 @@ function apply(state) {
         }),
       );
       points.userData.curve = curve;
+      points.userData.connection = connection;
+      const track = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(curve.getPoints(48)),
+        new THREE.LineBasicMaterial({
+          color: points.material.color,
+          transparent: true,
+          opacity: connection.kind === 'traffic' ? 0.45 : 0.22,
+          depthWrite: false,
+        }),
+      );
+      flowGroup.add(track);
+      points.userData.track = track;
       points.frustumCulled = false;
       flowGroup.add(points);
       flows.push(points);
@@ -282,10 +390,9 @@ function apply(state) {
       element.className = 'edge-label';
       element.textContent = connection.label;
       labelLayer.append(element);
-      edges.push({ element, point: curve.getPoint(0.5) });
+      edges.push({ element, point: curve.getPoint(0.5), connection });
     }
-    $('construct').value =
-      constructs.find((c) => (c.primaryId || c.id) === current.objects[0]?.id)?.id || '';
+    journey.set(current, flows);
     particleTransition.begin(current.assembly, paused);
     if (paused) {
       positions.set(targets);
@@ -296,9 +403,14 @@ function apply(state) {
   }
   interactionControls.render(state, current, objectBounds);
   annotations.setItems([...labels, ...edges, ...interactionControls.annotations()]);
+  refreshVisibility();
   currentFocus = state.focus;
   cameraCommand = state.camera || {};
   if (changed || state.camera_revision !== cameraRevision) frame(currentFocus);
+  if (state.camera_revision !== cameraRevision) {
+    if (currentFocus) inspect(currentFocus);
+    else if (!localInspection) $('detail').hidden = true;
+  }
   cameraRevision = state.camera_revision;
   sceneRevision = state.scene_revision;
 }
@@ -319,27 +431,21 @@ events.onmessage = (event) => {
     error(`Unable to display scene: ${e.message}`);
   }
 };
-for (const construct of constructs) {
-  const option = document.createElement('option');
-  option.value = construct.id;
-  option.textContent = construct.label;
-  $('construct').append(option);
-}
-$('construct').onchange = async () => {
-  const name = $('construct').value;
-  if (!name) return;
-  try {
-    const response = await fetch(`/examples/${name}.json`);
-    if (!response.ok) throw new Error('Unable to load construct');
-    await send('scene', await response.json());
-    $('construct').value = name;
-  } catch (e) {
-    error(e.message);
-  }
-};
 $('reset').onclick = () => send('clear', {});
-$('frame').onclick = () => focus(null);
-$('close-detail').onclick = () => focus(null);
+let press;
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  if (e.button === 0) press = { x: e.clientX, y: e.clientY };
+});
+renderer.domElement.addEventListener('pointerup', (e) => {
+  if (press && Math.hypot(e.clientX - press.x, e.clientY - press.y) < 5) {
+    const id = diagram.pick(e.clientX, e.clientY, innerWidth, innerHeight);
+    if (id) inspect(id);
+  }
+  press = null;
+});
+renderer.domElement.addEventListener('pointercancel', () => {
+  press = null;
+});
 function motionButton() {
   $('motion').textContent = paused ? 'Resume motion' : 'Pause motion';
   $('motion').setAttribute('aria-pressed', String(paused));
@@ -381,6 +487,7 @@ function animate(now) {
     p.needsUpdate = true;
   }
   cameraController.update(dt, paused);
+  journey.update(dt, paused);
   interactionControls.update(camera, innerWidth, innerHeight);
   const reserved = annotationPanels
     .filter((panel) => !panel.hidden)
@@ -390,7 +497,7 @@ function animate(now) {
     innerWidth,
     innerHeight,
     new Map(
-      [...objectBounds].filter(
+      [...diagram.bounds()].filter(
         ([id]) => current?.objects.find((o) => o.id === id)?.show_label !== false,
       ),
     ),

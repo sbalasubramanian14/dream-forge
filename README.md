@@ -19,7 +19,7 @@ npm ci
 npm start
 ```
 
-Open **http://127.0.0.1:4317**. Keep the terminal running. Use the compact construct selector to explore **Stone doorway**, **Branching tree**, **Gear assembly**, **Planet system**, **Rocket**, **Request flow**, **Double helix**, **Solar system**, or **Guided explanation**. Drag to orbit, scroll to zoom, and click an object label for details. **Reset view** resets camera zoom and rotation to fit every construct on screen. **Dissolve** returns to the idle field; **Pause motion** stops particle animation. Reduced-motion preferences start the canvas paused. Constructs stay centered and take most of the viewport. Small captions and controls sit along the bottom. Surrounding dust occupies 3D space and reveals deeper layers as you zoom out.
+Open **http://127.0.0.1:4317**. Keep the terminal running. The canvas starts empty; load a scene through the CLI or an agent. Use **Rotate/Pan**, scroll or +/− to zoom, and click a part or label to inspect. **Fit scene** frames the visible constructs. **More → Dissolve scene** returns to the idle field; **Pause motion** stops particle animation and request playback. Reduced-motion preferences start paused. Constructs remain central, with compact controls along the bottom. Surrounding dust occupies 3D space and reveals deeper layers as you zoom out.
 
 In a second terminal, from the repository:
 
@@ -201,7 +201,7 @@ For agent-defined geometry, use `shape: "pointcloud"` and provide `points`, an a
 }
 ```
 
-Demo names: `portal`, `tree`, `mechanism`, `orbits`, `rocket`, `architecture`, `helix`, `solar-system`, and `walkthrough`. Example JSON files are shared by the browser selector and CLI, so either interface produces the same scene.
+Demo names: `portal`, `tree`, `mechanism`, `orbits`, `rocket`, `architecture`, `helix`, `solar-system`, `walkthrough`, and `aws-eks`. Example JSON files are shared by the CLI and served as read-only assets for browser testing; there is no scene-replacing dropdown in the viewer.
 
 ## Adaptive labels
 
@@ -238,7 +238,7 @@ Surrounding particles live in world space across ten distance scales. Their appa
 
 ## Agent-authored buttons and guided steps
 
-Try **Guided explanation** in the selector, or `node bin/dream-forge.js demo walkthrough`. An agent can author `actions` and up to 20 `steps` in a scene. Each step is a scene snapshot with its own objects, connections, title, explanation, optional camera, and optional actions. Missing step actions inherit the overview actions; `actions: []` removes them. The initial overview is step -1. Steps are zero-based.
+Try `node bin/dream-forge.js demo walkthrough`. An agent can author `actions` and up to 20 `steps` in a scene. Each step is a scene snapshot with its own objects, connections, title, explanation, optional camera, and optional actions. Missing step actions inherit the overview actions; `actions: []` removes them. The initial overview is step -1. Steps are zero-based. The viewer supplies progress, a step picker, Previous/Next, and Return to overview; duplicate authored Next/Previous toolbar controls are hidden.
 
 ```json
 {
@@ -278,14 +278,14 @@ Each interaction has a unique `id`, human-readable `label`, and an `action`. Pla
 
 Supported behaviors:
 
-| Action              | Fields              | Behavior                              |
-| ------------------- | ------------------- | ------------------------------------- |
-| `camera`            | `settings`          | Change view, fit, zoom, or auto-orbit |
-| `focus`             | `object_id` or null | Focus a part or reset to all objects  |
-| `next` / `previous` | None                | Navigate the authored sequence        |
-| `goto`              | Zero-based `index`  | Jump to a specific step               |
-| `clear`             | None                | Dissolve and clear the sequence       |
-| `notify`            | `message`           | Record a user intent for the agent    |
+| Action              | Fields                    | Behavior                              |
+| ------------------- | ------------------------- | ------------------------------------- |
+| `camera`            | `settings`                | Change view, fit, zoom, or auto-orbit |
+| `focus`             | `object_id` or null       | Focus a part or reset to all objects  |
+| `next` / `previous` | None                      | Navigate the authored sequence        |
+| `goto`              | Zero-based `index`, or -1 | Jump to a specific step or overview   |
+| `clear`             | None                      | Dissolve and clear the sequence       |
+| `notify`            | `message`                 | Record a user intent for the agent    |
 
 Controls are generated from scene data, not hardcoded per demo. Actions are validated against the active snapshot. Human clicks and the MCP `activate_action` tool use the same action registry. `go_to_step` navigates directly. State keeps the last 32 interaction records, including the clicked control and step transition. `notify` does **not** automatically wake an agent or generate a response; the agent reads `get_scene` to respond to recorded intent. No scene action executes arbitrary JavaScript or HTML.
 
@@ -327,9 +327,38 @@ Session-scoped endpoints use `?session=ID`; omission uses the local sandbox.
 
 POST requests require `Content-Type: application/json`. The server binds to `127.0.0.1` and rejects foreign Host/Origin headers. No CORS access is enabled. It is intended for trusted local tools; other local processes can access it. There are no runtime cloud requests, telemetry, or API keys. npm needs network access to install dependencies.
 
-## First-version scope
+## Viewing explanations
 
-Included: 24,000 morphing construct particles plus a 14,000-point world-space dust field, eleven procedural shapes and custom point clouds, per-object rotation, directed connection animation, orbit/zoom, object labels and descriptions, camera focus, nine examples, CLI, MCP, and installable skills.
+The canvas has no demo dropdown: an agent's explanation stays in place until a scene command changes it. Load bundled examples through `dream-forge demo <name>`, including `aws-eks` for the eight-step multi-region request journey.
+
+- **Rotate / Pan** choose what left-drag does. Right-drag also pans; scroll and +/− zoom. **Fit scene** frames visible objects. Touch supports one-finger rotate/pan and two-finger camera gestures.
+- Click a part or its label to inspect it without moving the camera. **Zoom to selection** moves closer. **Isolate selection** keeps its parents and descendants; Layers → Show everything exits isolation. Picking uses component bounding volumes; large boundaries are selected through their labels.
+- Drag a label to place it yourself. Positions persist locally per browser, session and snapshot/object. More → Reset label positions returns to automatic placement. Manual pins can overlap other labels, so the viewer retains control over them.
+- **Read explanation** opens the complete text in a scrollable panel. The caption remains short. Overview, Previous/Next, progress and the step picker work for any authored sequence. Left/right arrow keys navigate when a form control is not focused.
+- **Layers** filters boundaries, labels, traffic, configuration, other connections and ambient particles. **More** contains fullscreen, reset label positions and Dissolve scene.
+- History groups step visits under their scene revision while preserving individual restore buttons and bounded persisted snapshots.
+
+Declare `role: "boundary"` for intentionally box-shaped grouping geometry. The renderer adds a clear bounding-box outline and places inner labels without treating the whole boundary as a solid obstacle. `parent_id` references another object in the same snapshot, creating an acyclic hierarchy for selection and isolation. It does not change positions or enforce geometric containment. Use one meaningful parent; overlapping namespace and physical-node relationships should be explained explicitly.
+
+Connections support `kind: "traffic" | "configuration" | "relationship"` (default relationship). An optional snapshot `journey` makes ordered playback available:
+
+```json
+{
+  "label": "Follow one request",
+  "path": ["browser", "alb", "pod"],
+  "seconds_per_hop": 1.6
+}
+```
+
+Each consecutive pair must have an explicit directed traffic connection. The viewer supplies Play/Pause, Replay and playback speed. Global Pause motion also pauses the marker; reduced-motion users can explicitly Resume motion. Traffic filtering suspends playback. Journeys are authored illustrations, not live packet traces, and are never inferred from arbitrary graph order. New fields are optional; older scenes remain valid.
+
+Viewer inspection, label pins, camera gestures and filters remain local to the browser and do not become agent interaction events. Use authored notify buttons when you want to record a question for the agent.
+
+The AWS example models Route 53 DNS and regional ALBs with pod IP targets, following [AWS ALB routing guidance](https://docs.aws.amazon.com/eks/latest/userguide/alb-ingress.html). Namespace overlays follow the [Kubernetes namespace model](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/). Data replication is illustrative and requires an explicit application strategy.
+
+## Scope
+
+Included: 24,000 morphing construct particles plus a 14,000-point world-space dust field, eleven procedural shapes and custom point clouds, per-object rotation, typed connections, request playback, rotate/pan/zoom, direct inspection, movable labels, parent-aware isolation, layer filtering, guided navigation, grouped history, ten examples, CLI, MCP, and installable skills.
 
 Current limits: updates to the same session are serialized and the last accepted update wins, no semantic object generation, no imported mesh or splat files, no physical simulation, and no pixel-perfect recreation of the reference image. Particle assignment between different shapes is a simple deterministic mapping; it can produce crossing trajectories. Large scenes share a fixed particle budget.
 

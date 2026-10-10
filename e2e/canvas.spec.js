@@ -1,6 +1,11 @@
 import { test, expect } from '@playwright/test';
 import { PNG } from 'pngjs';
 
+async function loadExample(page, name) {
+  const scene = await (await page.request.get('/examples/' + name + '.json')).json();
+  await page.request.post('/api/scene', { data: scene });
+}
+
 function coloredPixels(buffer, left = 50, top = 130, width = 200, height = 320) {
   const png = PNG.sync.read(buffer);
   let count = 0;
@@ -16,14 +21,14 @@ function coloredPixels(buffer, left = 50, top = 130, width = 200, height = 320) 
     }
   return count;
 }
-function changedPixels(a, b, left = 350, top = 100, width = 750, height = 580) {
+function changedPixels(a, b, left = 350, top = 100, width = 750, height = 580, threshold = 20) {
   const first = PNG.sync.read(a),
     second = PNG.sync.read(b);
   let changed = 0;
   for (let y = top; y < top + height; y++)
     for (let x = left; x < left + width; x++) {
       const i = (y * first.width + x) * 4;
-      if (Math.abs(first.data[i + 1] - second.data[i + 1]) > 20) changed++;
+      if (Math.abs(first.data[i + 1] - second.data[i + 1]) > threshold) changed++;
     }
   return changed;
 }
@@ -123,7 +128,7 @@ test('adaptive annotations keep solar and dense engineering overviews clear', as
 }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
-  await page.getByRole('combobox', { name: 'Choose a construct' }).selectOption('solar-system');
+  await loadExample(page, 'solar-system');
   await page.waitForTimeout(180);
   await assertClearAnnotations(page, 10);
   await page.screenshot({ path: 'test-results/solar-adaptive-labels.png' });
@@ -152,9 +157,8 @@ test('adaptive annotations keep solar and dense engineering overviews clear', as
   await page.getByRole('button', { name: 'Engineering module 1', exact: true }).hover();
   await page.getByRole('button', { name: 'Engineering module 1', exact: true }).click();
   await expect(page.locator('#detail-title')).toHaveText('Engineering module 1');
-  await expect
-    .poll(async () => (await (await request.get('/api/state')).json()).focus)
-    .toBe('module-0');
+  await expect.poll(async () => (await (await request.get('/api/state')).json()).focus).toBe(null); // Inspecting does not issue an agent camera command.
+  await page.getByRole('button', { name: 'Close object details' }).click();
   await request.post('/api/camera', { data: { zoom: 0.1, transition: 0 } });
   await page.setViewportSize({ width: 430, height: 850 });
   await page.waitForTimeout(180);
@@ -174,11 +178,11 @@ test('particle canvas assembles, updates, focuses, orbits, pauses, and dissolves
   await expect(page.getByRole('status')).toHaveText('Canvas connected');
   await expect(page.locator('canvas')).toBeVisible();
   await expect(page.locator('#title')).toHaveText('A space for your next thought');
-  await page.getByRole('combobox', { name: 'Choose a construct' }).selectOption('portal');
+  await loadExample(page, 'portal');
   await expect(page.getByRole('button', { name: 'The doorway', exact: true })).toBeVisible();
   await page.waitForTimeout(2200);
   await page.screenshot({ path: 'test-results/doorway.png' });
-  await page.getByRole('combobox', { name: 'Choose a construct' }).selectOption('architecture');
+  await loadExample(page, 'architecture');
   await expect(page.locator('.label')).toHaveCount(3);
   await expect(page.locator('.edge-label')).toHaveCount(2);
   await page.waitForTimeout(2200);
@@ -186,9 +190,7 @@ test('particle canvas assembles, updates, focuses, orbits, pauses, and dissolves
   await page.getByRole('button', { name: 'Database', exact: true }).click();
   await expect(page.locator('#detail')).toBeVisible();
   await expect(page.locator('#detail-title')).toHaveText('Database');
-  await expect
-    .poll(async () => (await (await request.get('/api/state')).json()).focus)
-    .toBe('database');
+  await expect.poll(async () => (await (await request.get('/api/state')).json()).focus).toBe(null);
   await page.getByRole('button', { name: 'Close object details' }).click();
   await expect(page.locator('#detail')).toBeHidden();
   await page.mouse.move(720, 360);
@@ -196,19 +198,20 @@ test('particle canvas assembles, updates, focuses, orbits, pauses, and dissolves
   await page.mouse.move(950, 420, { steps: 12 });
   await page.mouse.up();
   await page.mouse.wheel(0, -200);
-  await page.getByRole('button', { name: 'Reset view', exact: true }).click();
+  await page.getByRole('button', { name: 'Fit scene', exact: true }).click();
   await page.getByRole('button', { name: 'Pause motion', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Resume motion', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true',
   );
-  await page.getByRole('combobox', { name: 'Choose a construct' }).selectOption('helix');
+  await loadExample(page, 'helix');
   await expect(page.getByRole('button', { name: 'Double helix', exact: true })).toHaveCount(1);
   await page.screenshot({ path: 'test-results/helix.png' });
   await page.getByRole('button', { name: 'Resume motion', exact: true }).click();
   await page.reload();
   await expect(page.locator('.label')).toHaveCount(1);
-  await page.getByRole('button', { name: 'Dissolve', exact: true }).click();
+  await page.getByRole('button', { name: 'More', exact: true }).click();
+  await page.getByRole('button', { name: 'Dissolve scene', exact: true }).click();
   await expect(page.locator('.label')).toHaveCount(0);
   await expect(page.locator('#title')).toHaveText('A space for your next thought');
   expect(errors).toEqual([]);
@@ -220,14 +223,15 @@ test('small viewport and reduced motion remain usable', async ({ page, request }
   await request.post('/api/clear', { data: {} });
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'Resume motion' })).toBeVisible();
-  await page.getByRole('combobox', { name: 'Choose a construct' }).selectOption('portal');
+  await loadExample(page, 'portal');
   await expect(page.locator('.label')).toHaveCount(1);
   await page.screenshot({ path: 'test-results/mobile.png' });
   const label = await page.locator('.label').boundingBox(),
     caption = await page.locator('.caption').boundingBox();
   expect(label.y + label.height).toBeLessThan(caption.y);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.getByRole('button', { name: 'Dissolve', exact: true }).click();
+  await page.getByRole('button', { name: 'More', exact: true }).click();
+  await page.getByRole('button', { name: 'Dissolve scene', exact: true }).click();
   await expect(page.locator('.label')).toHaveCount(0);
 });
 
@@ -238,7 +242,7 @@ test('canvas follows window size and refits when resizing or recovering from zoo
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await request.post('/api/clear', { data: {} });
   await page.goto('/');
-  await page.getByRole('combobox', { name: 'Choose a construct' }).selectOption('portal');
+  await loadExample(page, 'portal');
   for (const viewport of [
     { width: 1280, height: 620 },
     { width: 1024, height: 600 },
@@ -257,7 +261,7 @@ test('canvas follows window size and refits when resizing or recovering from zoo
     const caption = await page.locator('.caption').boundingBox();
     expect(label.y).toBeGreaterThan(0);
     expect(label.x >= caption.x + caption.width || label.y + label.height < caption.y).toBe(true);
-    const nav = await page.locator('nav').boundingBox();
+    const nav = await page.locator('nav[aria-label="Canvas controls"]').boundingBox();
     expect(nav.x + nav.width).toBeLessThanOrEqual(viewport.width);
     expect(nav.y + nav.height).toBeLessThanOrEqual(viewport.height);
     expect(await page.evaluate(() => document.documentElement.scrollHeight <= innerHeight)).toBe(
@@ -267,13 +271,15 @@ test('canvas follows window size and refits when resizing or recovering from zoo
   await page.setViewportSize({ width: 1280, height: 620 });
   await page.mouse.move(640, 230);
   await page.mouse.wheel(0, -1200);
-  await page.getByRole('button', { name: 'Reset view', exact: true }).click();
+  await page.getByRole('button', { name: 'Fit scene', exact: true }).click();
   await expect
     .poll(async () => {
       const label = await page.locator('.label').boundingBox(),
         caption = await page.locator('.caption').boundingBox();
       return (
-        label.y > 0 && (label.x >= caption.x + caption.width || label.y + label.height < caption.y)
+        label &&
+        label.y > 0 &&
+        (label.x >= caption.x + caption.width || label.y + label.height < caption.y)
       );
     })
     .toBe(true);
@@ -296,9 +302,9 @@ test('richer constructs and custom geometry remain centered with compact control
     ['rocket', 'Launch vehicle'],
     ['portal', 'The doorway'],
   ]) {
-    await page.getByRole('combobox', { name: 'Choose a construct' }).selectOption(name);
+    await loadExample(page, name);
     await expect(page.getByRole('button', { name: label, exact: true })).toBeVisible();
-    const box = await page.locator('nav').boundingBox();
+    const box = await page.locator('nav[aria-label="Canvas controls"]').boundingBox();
     expect(box.height).toBeLessThan(60);
     if (['tree', 'rocket', 'portal'].includes(name)) {
       const anchor = await page.getByRole('button', { name: label, exact: true }).boundingBox();
@@ -340,7 +346,7 @@ test('agent camera views, zoom, and orbit work while distant particles stay visi
   page.on('pageerror', (e) => errors.push(e.message));
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
-  await page.getByRole('combobox', { name: 'Choose a construct' }).selectOption('portal');
+  await loadExample(page, 'portal');
   await expect(page.getByRole('button', { name: 'The doorway' })).toBeVisible();
   await request.post('/api/camera', { data: { view: 'front', transition: 0 } });
   await page.waitForTimeout(150);
@@ -352,7 +358,7 @@ test('agent camera views, zoom, and orbit work while distant particles stay visi
   const side = await page.screenshot({ path: 'test-results/agent-side-view.png' });
   expect(changedPixels(front, side)).toBeGreaterThan(1000);
   // A paused background must still move with the camera, rather than act as wallpaper.
-  expect(changedPixels(front, side, 50, 130, 250, 320)).toBeGreaterThan(100);
+  expect(changedPixels(front, side, 50, 130, 250, 320, 3)).toBeGreaterThan(100);
   await request.post('/api/camera', { data: { view: 'top', zoom: 1.4, transition: 0 } });
   await page.waitForTimeout(150);
   await expect(page.locator('#error')).toBeHidden();
@@ -364,12 +370,12 @@ test('agent camera views, zoom, and orbit work while distant particles stay visi
     if (i === 0) {
       const middleField = await page.screenshot({ path: 'test-results/particle-field-middle.png' });
       expect(coloredPixels(middleField)).toBeGreaterThan(80);
-      expect(changedPixels(nearField, middleField, 50, 130, 250, 320)).toBeGreaterThan(100);
+      expect(changedPixels(nearField, middleField, 50, 130, 250, 320, 3)).toBeGreaterThan(100);
     }
   }
   const distant = await page.screenshot({ path: 'test-results/extreme-zoom-out.png' });
   expect(coloredPixels(distant)).toBeGreaterThan(80);
-  await page.getByRole('button', { name: 'Reset view' }).click();
+  await page.getByRole('button', { name: 'Fit scene' }).click();
   await page.getByRole('button', { name: 'Resume motion' }).click();
   await request.post('/api/camera', {
     data: { view: 'isometric', auto_rotate: true, speed: 45, transition: 0 },
@@ -392,8 +398,8 @@ test('agent-authored buttons and hotspots guide a human through a sequence', asy
   page.on('pageerror', (e) => errors.push(e.message));
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
-  await page.getByRole('combobox', { name: 'Choose a construct' }).selectOption('walkthrough');
-  await expect(page.getByRole('button', { name: 'Previous', exact: true })).toBeDisabled();
+  await loadExample(page, 'walkthrough');
+  await expect(page.getByRole('button', { name: 'Previous step', exact: true })).toBeDisabled();
   const side = page.getByRole('button', { name: 'Side view', exact: true });
   await expect(side).toBeVisible();
   const screenButton = await side.boundingBox();

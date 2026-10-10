@@ -27,6 +27,8 @@ export const objectSchema = z
     shape: z.enum(shapeNames),
     label: z.string().max(120).default(''),
     show_label: z.boolean().default(true),
+    role: z.enum(['component', 'boundary']).default('component'),
+    parent_id: z.string().nullable().default(null),
     description: z.string().max(2000).default(''),
     position: vector.default([0, 0, 0]),
     scale: z.number().min(0.1).max(12).default(1),
@@ -43,7 +45,7 @@ export const actionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('focus'), object_id: z.string().nullable() }).strict(),
   z.object({ type: z.literal('next') }).strict(),
   z.object({ type: z.literal('previous') }).strict(),
-  z.object({ type: z.literal('goto'), index: z.number().int().min(0).max(19) }).strict(),
+  z.object({ type: z.literal('goto'), index: z.number().int().min(-1).max(19) }).strict(),
   z.object({ type: z.literal('clear') }).strict(),
   z.object({ type: z.literal('notify'), message: z.string().min(1).max(500) }).strict(),
 ]);
@@ -79,11 +81,20 @@ const snapshotFields = {
           from: z.string(),
           to: z.string(),
           label: z.string().max(120).default(''),
+          kind: z.enum(['traffic', 'configuration', 'relationship']).default('relationship'),
         })
         .strict(),
     )
     .max(48)
     .default([]),
+  journey: z
+    .object({
+      label: z.string().max(120).default('Follow the request'),
+      path: z.array(z.string()).min(2).max(49),
+      seconds_per_hop: z.number().min(0.2).max(10).default(1.6),
+    })
+    .strict()
+    .optional(),
   actions: z.array(interactionSchema).max(24).optional(),
   camera: cameraSchema.optional(),
 };
@@ -108,10 +119,44 @@ export const sceneSchema = z
           });
       }
       for (const object of snapshot.objects) {
+        if (
+          object.parent_id !== null &&
+          (!ids.has(object.parent_id) || object.parent_id === object.id)
+        )
+          ctx.addIssue({
+            code: 'custom',
+            message: 'Parent must reference another object in the snapshot',
+          });
+        const visited = new Set([object.id]);
+        let parent = object.parent_id;
+        while (parent && ids.has(parent)) {
+          if (visited.has(parent)) {
+            ctx.addIssue({ code: 'custom', message: 'Object parents must not form a cycle' });
+            break;
+          }
+          visited.add(parent);
+          parent = snapshot.objects.find((o) => o.id === parent)?.parent_id;
+        }
         if (object.shape === 'pointcloud' && !object.points)
           ctx.addIssue({ code: 'custom', message: 'pointcloud requires points' });
         if (object.shape !== 'pointcloud' && object.points)
           ctx.addIssue({ code: 'custom', message: 'points are only supported for pointcloud' });
+      }
+      if (snapshot.journey) {
+        const path = snapshot.journey.path;
+        for (const id of path)
+          if (!ids.has(id))
+            ctx.addIssue({ code: 'custom', message: 'Journey must reference existing objects' });
+        for (let i = 1; i < path.length; i++)
+          if (
+            !snapshot.connections.some(
+              (c) => c.from === path[i - 1] && c.to === path[i] && c.kind === 'traffic',
+            )
+          )
+            ctx.addIssue({
+              code: 'custom',
+              message: 'Each journey hop requires a directed traffic connection',
+            });
       }
       if (new Set(actions.map((a) => a.id)).size !== actions.length)
         ctx.addIssue({ code: 'custom', message: 'Action IDs must be unique in each step' });

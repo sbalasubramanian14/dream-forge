@@ -23,6 +23,8 @@ Choose `assembly: {mode: "morph", duration: 1.6}` for direct reshaping, or `mode
 
 Use camera tools to present an appropriate view and focus. All-camera framing is preferable for an overview; focus a part for detailed discussion. Let human input interrupt agent orbit. Author actions and steps when they help exploration; object hotspots avoid geometry and label collisions, while screen controls keep their authored positions. Tiny objects use compact markers with hover/focus names.
 
+For diagrams, declare box-shaped frames as `role: "boundary"` and supply acyclic `parent_id` relationships for physical or logical containment. Classify connections with `kind: "traffic"`, `"configuration"`, or `"relationship"`. Author a `journey` with an explicit ordered path only when its consecutive hops have directed traffic connections. The built-in viewer provides step navigation, inspection, label dragging, camera controls, layers and playback; avoid duplicate Next/Previous actions. Read the scene guide for details. Keep data-plane requests separate from configuration relationships.
+
 ## Continue the same canvas
 
 Read `get_scene` before expanding an explanation. It includes the active step, requested camera, session metadata, history summaries, and the last 32 interactions. Use `list_history` and `restore_history` for earlier scenes; restoration keeps newer history available. `notify` records human intent without automatically waking the agent. Read those events when the user asks to act on a click.

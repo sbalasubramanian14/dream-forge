@@ -8,4 +8,5 @@ export const constructs = [
   { id: 'architecture', label: 'Request flow', primaryId: 'browser' },
   { id: 'helix', label: 'Double helix' },
   { id: 'walkthrough', label: 'Guided explanation', primaryId: 'assembly' },
+  { id: 'aws-eks', label: 'Multi-region EKS request journey', primaryId: 'client' },
 ];

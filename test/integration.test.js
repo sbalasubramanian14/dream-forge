@@ -259,7 +259,7 @@ test('the production MCP daemon survives clients and keeps separate process canv
     );
     await first.close();
     first = null;
-    assert.equal((await request('health', undefined, port)).version, '0.4.0');
+    assert.equal((await request('health', undefined, port)).version, '0.5.0');
     second = await connect();
     const fresh = JSON.parse(
       (await second.callTool({ name: 'get_scene', arguments: {} })).content[0].text,

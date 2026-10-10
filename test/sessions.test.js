@@ -4,7 +4,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { SessionStore } from '../src/sessions.js';
-import { replaceScene, setCamera } from '../src/state.js';
+import { replaceScene, setCamera, goToStep } from '../src/state.js';
 import { getCapabilities } from '../src/capabilities.js';
 import { createParticleTransition } from '../web/particle-transition.js';
 
@@ -66,6 +66,33 @@ test('capability discovery exposes the current schema and supported limits', asy
   assert.equal(capabilities.scene_schema.properties.assembly.properties.mode.enum.length, 2);
   assert.equal(capabilities.limits.objects, 24);
   assert.match(capabilities.workflow, /session_id/);
+  assert.ok(capabilities.scene_schema.properties.journey);
+  assert.ok(capabilities.scene_schema.properties.objects.items.properties.parent_id);
+});
+
+test('history groups walkthrough visits by revision and retains the group after restoring', async () => {
+  const store = new SessionStore();
+  await store.initialize();
+  const id = (await store.create({ name: 'Walkthrough' })).session.id;
+  let state = await store.mutate(id, (s) =>
+    replaceScene(s, {
+      title: 'Revision one',
+      objects: [],
+      steps: [{ title: 'Step one', objects: [] }],
+    }),
+  );
+  const first = state.history[0];
+  state = await store.mutate(id, (s) => goToStep(s, 0));
+  assert.equal(state.history[1].group_id, first.group_id);
+  assert.equal(state.history[1].scene_title, 'Revision one');
+  state = await store.mutate(id, (s) =>
+    replaceScene(s, { title: 'Revision two', objects: [], steps: [{ objects: [] }] }),
+  );
+  assert.notEqual(state.history[2].group_id, first.group_id);
+  await store.restore(id, first.id);
+  state = await store.mutate(id, (s) => goToStep(s, 0));
+  assert.equal(state.history.at(-1).group_id, first.group_id);
+  assert.equal(state.history.length, 4);
 });
 
 test('dissolve passes through idle then reforms; direct morphs and pause remain deterministic', () => {

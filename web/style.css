@@ -403,6 +403,209 @@ a:focus-visible {
 body:has(#agent-controls:not([hidden])) .caption {
   bottom: 146px;
 }
+
+/* The construct remains central; standard controls occupy one compact dock. */
+.caption,
+body:has(#agent-controls:not([hidden])) .caption {
+  bottom: calc(var(--footer-height, 100px) + 36px);
+  max-width: min(650px, calc(100% - 48px));
+}
+.caption #read-explanation {
+  pointer-events: auto;
+  padding: 4px 0;
+  margin-top: 5px;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-size: 11px;
+}
+footer {
+  gap: 7px;
+}
+nav {
+  flex-wrap: wrap;
+  justify-content: center;
+}
+nav button {
+  font-size: 11px;
+  padding: 7px 10px;
+}
+button[aria-pressed='true'] {
+  background: #193943;
+  border-color: #6cbbc7;
+}
+#walkthrough[hidden],
+#journey-controls[hidden] {
+  display: none;
+}
+#walkthrough {
+  background: none;
+  border: 0;
+  padding: 0;
+  gap: 8px;
+}
+#step-progress {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+#step-picker {
+  max-width: 240px;
+  font-size: 11px;
+}
+#step-overview {
+  background: none;
+}
+#detail {
+  width: min(340px, calc(100% - 48px));
+  max-height: calc(100dvh - var(--footer-height, 100px) - 140px);
+  overflow: auto;
+}
+#detail p {
+  white-space: pre-line;
+  font-size: 13px;
+}
+.detail-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+.detail-actions button {
+  font-size: 11px;
+}
+.utility-panel {
+  position: absolute;
+  right: 24px;
+  bottom: calc(var(--footer-height, 100px) + 36px);
+  z-index: 5;
+  width: 220px;
+  padding: 16px;
+  background: #0b111af5;
+  border: 1px solid #2a3c47;
+  border-radius: 8px;
+}
+.utility-panel h2 {
+  font-size: 13px;
+  margin: 0 0 14px;
+}
+.utility-panel label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  font-size: 12px;
+}
+.utility-panel input {
+  accent-color: var(--accent);
+}
+.utility-panel button {
+  font-size: 11px;
+}
+#more-panel button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin-bottom: 8px;
+}
+#journey-controls {
+  position: absolute;
+  left: 24px;
+  top: 76px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  max-width: calc(100% - 48px);
+  background: #0b111ade;
+  border: 1px solid #25313d;
+  border-radius: 8px;
+  padding: 7px;
+}
+#journey-controls button,
+#journey-controls select {
+  font-size: 11px;
+  padding: 6px 9px;
+}
+#journey-status {
+  font-size: 11px;
+  color: #e1c994;
+  max-width: 260px;
+}
+.label {
+  touch-action: none;
+  cursor: grab;
+  font-size: 12px;
+}
+.label:active {
+  cursor: grabbing;
+}
+.label:hover {
+  border-color: #d9e9bf;
+  background: #1b3038;
+}
+.annotation-lines line {
+  stroke: #7396a2;
+  stroke-opacity: 0.65;
+}
+.history-group {
+  display: flex;
+  flex-direction: column;
+}
+.history-group summary {
+  font-size: 12px;
+  color: var(--ink);
+  padding: 10px 0;
+  cursor: pointer;
+}
+.history-group button {
+  width: 100%;
+  margin: 3px 0;
+}
+.utility-panel[hidden] {
+  display: none;
+}
+@media (max-width: 700px) {
+  footer {
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+  }
+  nav button {
+    font-size: 10px;
+    padding: 7px;
+  }
+  .caption,
+  body:has(#agent-controls:not([hidden])) .caption {
+    left: 18px;
+    right: 18px;
+    max-width: calc(100% - 36px);
+  }
+  #step-picker {
+    max-width: 150px;
+  }
+  #walkthrough {
+    gap: 5px;
+  }
+  #step-progress {
+    font-size: 10px;
+  }
+  #journey-controls {
+    left: 18px;
+    top: 64px;
+  }
+  #journey-status {
+    max-width: 150px;
+  }
+  .utility-panel {
+    right: 18px;
+  }
+  .label {
+    font-size: 11px;
+  }
+}
 #notice {
   position: absolute;
   right: 24px;

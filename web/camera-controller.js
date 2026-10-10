@@ -98,5 +98,19 @@ export function createCameraController(camera, controls) {
     }
   }
 
-  return { fit, update, interrupt };
+  function setMode(mode) {
+    interrupt();
+    controls.mouseButtons.LEFT = mode === 'pan' ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE;
+    controls.touches.ONE = mode === 'pan' ? THREE.TOUCH.PAN : THREE.TOUCH.ROTATE;
+  }
+  function zoom(factor) {
+    interrupt();
+    const offset = camera.position.clone().sub(controls.target);
+    offset.setLength(
+      THREE.MathUtils.clamp(offset.length() * factor, controls.minDistance, controls.maxDistance),
+    );
+    camera.position.copy(controls.target).add(offset);
+    controls.update();
+  }
+  return { fit, update, interrupt, setMode, zoom };
 }

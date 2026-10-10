@@ -25,21 +25,40 @@ export function createHistory({ button, panel, list, sessionList, sessionLabel, 
       empty.textContent = 'Your canvas starts empty. Scenes will appear here as you build.';
       list.append(empty);
     }
+    const groups = new Map();
     for (const entry of [...entries].reverse()) {
-      const item = document.createElement('button');
-      item.textContent = entry.title;
-      item.dataset.historyId = entry.id;
-      item.setAttribute('aria-current', String(entry.id === state.current_history_id));
-      item.title = `${new Date(entry.at).toLocaleTimeString()} · ${entry.object_count} objects`;
-      item.onclick = async () => {
-        item.disabled = true;
-        try {
-          await send('restore', { id: entry.id });
-        } finally {
-          item.disabled = false;
-        }
-      };
-      list.append(item);
+      const key = entry.group_id || entry.id;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(entry);
+    }
+    for (const group of groups.values()) {
+      let container = list;
+      if (group.length > 1) {
+        container = document.createElement('details');
+        container.className = 'history-group';
+        const heading = document.createElement('summary');
+        heading.textContent =
+          (group[0].scene_title || group[0].title) + ' · ' + group.length + ' visits';
+        container.append(heading);
+        container.open = group.some((e) => e.id === state.current_history_id);
+        list.append(container);
+      }
+      for (const entry of group) {
+        const item = document.createElement('button');
+        item.textContent = entry.title;
+        item.dataset.historyId = entry.id;
+        item.setAttribute('aria-current', String(entry.id === state.current_history_id));
+        item.title = `${new Date(entry.at).toLocaleTimeString()} · ${entry.object_count} objects`;
+        item.onclick = async () => {
+          item.disabled = true;
+          try {
+            await send('restore', { id: entry.id });
+          } finally {
+            item.disabled = false;
+          }
+        };
+        container.append(item);
+      }
     }
   }
   return { render };

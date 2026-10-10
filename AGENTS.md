@@ -17,3 +17,4 @@ Dream Forge is a local agent-driven particle canvas. Keep scene rendering indepe
 - Keep `get_capabilities`, the installed skill, and scene examples consistent with the schema. A validated scene is not proof of visual quality.
 - Extend the discriminated action schema, registry, and behavioral tests together for new actions. Keep snapshots immutable and preserve validation before mutation.
 - Format with `npm run format`; verify with `npm run format:check`. Browser tests use their own server on port 4319 and must not modify the user's live canvas.
+- Keep viewer navigation in `web/viewer-controls.js`, spatial selection and hierarchy filtering in `web/diagram.js`, and ordered playback in `web/journey.js`. Viewer inspection must not move the camera or mutate scene geometry. Journeys require explicit directed traffic edges; never infer data-plane routes from configuration relationships.

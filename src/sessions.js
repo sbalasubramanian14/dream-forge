@@ -30,6 +30,13 @@ export class SessionStore {
         // Validate persisted geometry rather than trusting disk content as executable input.
         const restored = replaceScene(createState(), record.state.scene);
         record.state = { ...restored, ...record.state, scene: restored.scene };
+        let groupId;
+        for (const entry of record.history) {
+          if (entry.step < 0 || !groupId) groupId = entry.group_id || randomUUID();
+          entry.group_id ||= groupId;
+          entry.scene_title ||= entry.scene.title;
+        }
+        record.currentGroupId ||= groupId;
         this.records.set(record.session.id, record);
       }
     }
@@ -96,6 +103,7 @@ export class SessionStore {
       const previous = this.get(id);
       const state = handler(previous.state, previous);
       const record = { ...previous, state, history: [...previous.history] };
+      if (state.scene !== previous.state.scene) record.currentGroupId = randomUUID();
       if (recordHistory && state.scene_revision !== previous.state.scene_revision) {
         const snapshot = state.step < 0 ? state.scene : state.scene.steps[state.step];
         const entry = {
@@ -106,6 +114,8 @@ export class SessionStore {
           object_count: snapshot.objects.length,
           scene: state.scene,
           camera: state.camera,
+          group_id: record.currentGroupId,
+          scene_title: state.scene.title,
         };
         record.history.push(entry);
         record.currentHistoryId = entry.id;
@@ -116,7 +126,10 @@ export class SessionStore {
         )
           record.history.shift();
       }
-      if (restoreId) record.currentHistoryId = restoreId;
+      if (restoreId) {
+        record.currentHistoryId = restoreId;
+        record.currentGroupId = record.history.find((entry) => entry.id === restoreId).group_id;
+      }
       await this.save(record);
       this.records.set(id, record);
       return this.state(id);

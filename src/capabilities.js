@@ -26,7 +26,9 @@ export async function getCapabilities() {
       'Connections, camera targets, and action targets must exist in their active snapshot.',
       'pointcloud requires points; other shapes must not supply points.',
       'Screen controls require normalized position; object controls require object_id.',
-      'goto must reference an authored step. Inherited actions must remain valid in every step.',
+      'goto must reference an authored step or overview (-1). Inherited actions must remain valid in every step.',
+      'Object parent_id references another object in the same snapshot; the hierarchy must be acyclic.',
+      'Journey paths require existing objects and a directed traffic connection for each consecutive hop.',
     ],
     workflow:
       'Read this guide once. Create one fresh session per conversation and pass its session_id on every tool call. Validate the complete scene, then show it. Preserve IDs for morphs. Use history to restore earlier scenes. A successful tool response validates acceptance, not visual quality.',

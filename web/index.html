@@ -25,11 +25,16 @@
       <section class="caption" aria-live="polite">
         <h1 id="title">A space for your next thought</h1>
         <p id="explanation"></p>
+        <button id="read-explanation">Read explanation</button>
       </section>
       <aside id="detail" hidden>
         <button id="close-detail" aria-label="Close object details">×</button>
         <h2 id="detail-title"></h2>
         <p id="detail-body"></p>
+        <div class="detail-actions">
+          <button id="zoom-selection">Zoom to selection</button
+          ><button id="isolate-selection">Isolate selection</button>
+        </div>
       </aside>
       <aside id="history-panel" hidden aria-label="Scene history">
         <h2>Scene history</h2>
@@ -38,17 +43,56 @@
         <div id="session-list"></div>
       </aside>
       <footer>
+        <nav id="walkthrough" aria-label="Explanation steps" hidden>
+          <button id="step-overview">Overview</button>
+          <button id="step-previous" aria-label="Previous step">Previous</button>
+          <span id="step-progress">Overview</span>
+          <select id="step-picker" aria-label="Jump to step"></select>
+          <button id="step-next" aria-label="Next step">Next</button>
+        </nav>
         <div id="agent-controls" aria-label="Agent-authored controls" hidden></div>
         <nav aria-label="Canvas controls">
-          <select id="construct" aria-label="Choose a construct">
-            <option value="">Explore a construct</option></select
-          ><span class="divider"></span><button id="reset">Dissolve</button
-          ><button id="frame" title="Reset zoom and rotation to fit every construct on screen">
-            Reset view</button
-          ><button id="motion" aria-pressed="false">Pause motion</button>
+          <button id="rotate-mode" aria-pressed="true">Rotate</button>
+          <button id="pan-mode" aria-pressed="false">Pan</button>
+          <span class="divider"></span>
+          <button id="zoom-out" aria-label="Zoom out">−</button>
+          <button id="zoom-in" aria-label="Zoom in">+</button>
+          <button id="frame" title="Fit visible objects on screen">Fit scene</button>
+          <button id="motion" aria-pressed="false">Pause motion</button>
+          <button id="layers-toggle" aria-expanded="false" aria-controls="layers-panel">
+            Layers
+          </button>
+          <button id="more-toggle" aria-expanded="false" aria-controls="more-panel">More</button>
         </nav>
-        <p class="hint">Drag to orbit · Scroll to zoom · Click a label to explore</p>
+        <p class="hint" id="gesture-hint">
+          Drag to rotate · Right-drag to pan · Scroll to zoom · Click a part to inspect
+        </p>
       </footer>
+      <aside id="layers-panel" class="utility-panel" hidden aria-label="Visible layers">
+        <h2>Visible layers</h2>
+        <label><input id="show-boundaries" type="checkbox" checked /> Boundaries</label>
+        <label><input id="show-labels" type="checkbox" checked /> Labels</label>
+        <label><input id="show-traffic" type="checkbox" checked /> Traffic paths</label>
+        <label><input id="show-configuration" type="checkbox" checked /> Configuration</label>
+        <label><input id="show-relationships" type="checkbox" checked /> Other connections</label>
+        <label><input id="show-background" type="checkbox" checked /> Ambient particles</label>
+        <button id="show-all">Show everything</button>
+      </aside>
+      <aside id="more-panel" class="utility-panel" hidden aria-label="Additional controls">
+        <button id="reset-labels">Reset label positions</button>
+        <button id="fullscreen">Fullscreen</button>
+        <button id="reset">Dissolve scene</button>
+      </aside>
+      <div id="journey-controls" aria-label="Request playback" hidden>
+        <button id="journey-play">Play request</button>
+        <button id="journey-replay" aria-label="Replay request">Replay</button>
+        <select id="journey-speed" aria-label="Request speed">
+          <option value="0.5">0.5×</option>
+          <option value="1" selected>1×</option>
+          <option value="2">2×</option>
+        </select>
+        <span id="journey-status" role="status"></span>
+      </div>
       <div id="error" role="alert" hidden></div>
       <div id="notice" role="status" hidden></div>
     </main>

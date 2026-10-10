@@ -37,6 +37,7 @@ export function createParticleField() {
       time: { value: 0 },
       viewportHeight: { value: 900 },
       color: { value: new THREE.Color('#5c9ca9') },
+      intensity: { value: 0.65 },
     },
     vertexShader: `
       attribute float radius;
@@ -57,11 +58,13 @@ export function createParticleField() {
     `,
     fragmentShader: `
       uniform vec3 color;
+      uniform float intensity;
       varying float visibility;
       void main() {
         vec2 offset = gl_PointCoord * 2.0 - 1.0;
         float glow = exp(-dot(offset, offset) * 5.0);
-        gl_FragColor = vec4(color, glow * visibility * 0.65);
+        float scaleIntensity = mix(intensity, 0.65, smoothstep(24.0, 80.0, length(cameraPosition)));
+        gl_FragColor = vec4(color, glow * visibility * scaleIntensity);
       }
     `,
     transparent: true,
@@ -73,6 +76,9 @@ export function createParticleField() {
   points.frustumCulled = false;
   return {
     points,
+    intensity(value) {
+      material.uniforms.intensity.value = value;
+    },
     update(elapsed, viewportHeight) {
       material.uniforms.time.value = elapsed;
       material.uniforms.viewportHeight.value = viewportHeight;
