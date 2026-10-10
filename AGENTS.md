@@ -1,0 +1,13 @@
+# Working on Dream Forge
+
+Dream Forge is a local agent-driven particle canvas. Keep scene rendering independent of any AI vendor or API key.
+
+- Use Node ESM and the existing plain browser modules. Run `npm test` after runtime changes.
+- Treat `src/schema.js` as the scene contract. Update docs, examples, MCP inputs, and renderer support together when changing it.
+- MCP stdout is protocol-only. Diagnostics belong on stderr.
+- Keep the HTTP server loopback-only. Do not introduce runtime execution of agent-supplied JavaScript or HTML.
+- Preserve textContent for all user/agent labels and explanations.
+- Scene commands replace the complete scene; do not imply partial updates exist.
+- Verify visuals in a real headed browser for rendering changes. Exercise idle, assembly, scene replacement, focus, pause, and dissolve.
+- Keep the dark particle-first canvas spacious. Labels and controls should support understanding without obscuring constructs.
+- Describe procedural visuals and metaphors honestly; do not claim Gaussian reconstruction, live traces, or physical accuracy.

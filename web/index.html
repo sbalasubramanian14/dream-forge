@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dream Forge · Ideas take shape</title>
+  <link rel="stylesheet" href="/style.css">
+  <script type="importmap">{"imports":{"three":"/three.js"}}</script>
+</head>
+<body>
+  <main>
+    <div id="viewport" aria-label="Interactive 3D particle canvas"><div id="labels"></div></div>
+    <header><a class="brand" href="/">dream forge<span>A canvas for agent imagination</span></a><div id="connection" role="status">Connecting</div></header>
+    <section class="caption" aria-live="polite"><p class="eyebrow">From thought to form</p><h1 id="title">A space for your next thought</h1><p id="explanation"></p></section>
+    <aside id="detail" hidden><button id="close-detail" aria-label="Close object details">×</button><h2 id="detail-title"></h2><p id="detail-body"></p></aside>
+    <footer>
+      <nav aria-label="Canvas controls"><button data-demo="portal">Doorway</button><button data-demo="architecture">Request flow</button><button data-demo="helix">Double helix</button><span class="divider"></span><button id="reset">Dissolve</button><button id="frame">Frame all</button><button id="motion" aria-pressed="false">Pause motion</button></nav>
+      <p class="hint">Drag to orbit · Scroll to zoom · Click a label to explore</p>
+    </footer>
+    <div id="error" role="alert" hidden></div>
+  </main>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
