@@ -21,6 +21,7 @@ const assets = new Map([
   ['/catalog.js', ['web/catalog.js', 'text/javascript']],
   ['/camera-controller.js', ['web/camera-controller.js', 'text/javascript']],
   ['/interactions.js', ['web/interactions.js', 'text/javascript']],
+  ['/particle-field.js', ['web/particle-field.js', 'text/javascript']],
   ['/three.js', ['node_modules/three/build/three.module.js', 'text/javascript']],
   ['/three.core.js', ['node_modules/three/build/three.core.js', 'text/javascript']],
   [

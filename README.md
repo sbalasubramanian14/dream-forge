@@ -19,7 +19,7 @@ npm ci
 npm start
 ```
 
-Open **http://127.0.0.1:4317**. Keep the terminal running. Use the compact construct selector to explore **Stone doorway**, **Branching tree**, **Gear assembly**, **Planet system**, **Rocket**, **Request flow**, **Double helix**, or **Guided explanation**. Drag to orbit, scroll to zoom, and click an object label for details. **Reset view** resets camera zoom and rotation to fit every construct on screen. **Dissolve** returns to the idle field; **Pause motion** stops particle animation. Reduced-motion preferences start the canvas paused. Constructs stay centered and take most of the viewport. Small captions and controls sit along the bottom. Background dots cover the viewport independently of construct zoom.
+Open **http://127.0.0.1:4317**. Keep the terminal running. Use the compact construct selector to explore **Stone doorway**, **Branching tree**, **Gear assembly**, **Planet system**, **Rocket**, **Request flow**, **Double helix**, or **Guided explanation**. Drag to orbit, scroll to zoom, and click an object label for details. **Reset view** resets camera zoom and rotation to fit every construct on screen. **Dissolve** returns to the idle field; **Pause motion** stops particle animation. Reduced-motion preferences start the canvas paused. Constructs stay centered and take most of the viewport. Small captions and controls sit along the bottom. Surrounding dust occupies 3D space and reveals deeper layers as you zoom out.
 
 In a second terminal, from the repository:
 
@@ -192,7 +192,7 @@ node bin/dream-forge.js camera camera.json
 
 Views: `front`, `back`, `left`, `right`, `top`, `bottom`, `isometric`. Optional absolute `yaw` (-360 to 360) and `pitch` (-89.5 to 89.5) are in degrees and override the preset. `target_id: null` fits the entire scene; an object ID fits that object. `zoom` ranges from 0.1 to 10 relative to automatic framing: 1 fits, 2 moves twice as close, 0.5 moves farther away. `speed` is orbit speed in degrees/second (-90 to 90), and `transition` sets the smoothing time scale (0 to 5 seconds; 0 snaps). Each command replaces camera settings. Manual dragging or zooming interrupts agent camera motion. Pause/reduced-motion settings stop auto-orbit. Scene replacement and Reset view restore default framing.
 
-Background particles use a camera-local layer with fixed screen sizes, so zooming out continues to show particles even when the construct becomes tiny. The requested camera is returned in state; user-adjusted camera positions are local to each browser and are not reported as live pose feedback.
+Surrounding particles live in world space across ten distance scales. Their apparent sizes shrink with depth, and camera movement produces parallax. More distant layers fade in gradually as you zoom out; the field is finite and covers the supported camera range. The requested camera is returned in state; user-adjusted camera positions are local to each browser and are not reported as live pose feedback.
 
 ## Agent-authored buttons and guided steps
 
@@ -277,7 +277,7 @@ POST requests require `Content-Type: application/json`. The server binds to `127
 
 ## First-version scope
 
-Included: 24,000 morphing construct particles plus a viewport-wide ambient field, eleven procedural shapes and custom point clouds, per-object rotation, directed connection animation, orbit/zoom, object labels and descriptions, camera focus, eight examples, CLI, MCP, and installable skills.
+Included: 24,000 morphing construct particles plus a 14,000-point world-space dust field, eleven procedural shapes and custom point clouds, per-object rotation, directed connection animation, orbit/zoom, object labels and descriptions, camera focus, eight examples, CLI, MCP, and installable skills.
 
 Current limits: one shared in-memory scene per port, last update wins, no persistence, no semantic object generation, no imported mesh or splat files, no physical simulation, and no pixel-perfect recreation of the reference image. Particle assignment between different shapes is a simple deterministic mapping; it can produce crossing trajectories. Large scenes share a fixed particle budget.
 
@@ -296,6 +296,7 @@ Source layout:
 - `web/`: Three.js canvas, particle geometry, browser controls.
 - `web/camera-controller.js`: camera framing, smooth viewpoint transitions, and orbit.
 - `web/interactions.js`: scene-defined buttons and hotspots.
+- `web/particle-field.js`: surrounding 3D dust, depth attenuation, and distance-scale visibility.
 - `src/`: validated scene contract, local HTTP server, MCP tools.
 - `src/state.js`: pure state transitions and the action registry.
 - `bin/`: CLI and skill installer.

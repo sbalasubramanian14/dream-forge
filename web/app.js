@@ -4,6 +4,7 @@ import { randomGenerator, shapePoint } from '/geometry.js';
 import { constructs } from '/catalog.js';
 import { createCameraController } from '/camera-controller.js';
 import { createInteractionControls } from '/interactions.js';
+import { createParticleField } from '/particle-field.js';
 
 const $ = (id) => document.getElementById(id);
 const viewport = $('viewport'),
@@ -85,38 +86,8 @@ const material = new THREE.PointsMaterial({
 const cloud = new THREE.Points(geometry, material);
 cloud.frustumCulled = false;
 scene.add(cloud);
-// Camera-local ambient points cover the viewport independently of construct zoom.
-const ambientCount = 2800,
-  ambientRandom = randomGenerator(909),
-  ambientSamples = Array.from({ length: ambientCount }, () => [
-    ambientRandom() * 2 - 1,
-    ambientRandom() * 2 - 1,
-    12 + ambientRandom() * 32,
-  ]);
-const ambientGeometry = new THREE.BufferGeometry();
-ambientGeometry.setAttribute(
-  'position',
-  new THREE.BufferAttribute(new Float32Array(ambientCount * 3), 3),
-);
-const ambient = new THREE.Points(
-  ambientGeometry,
-  new THREE.PointsMaterial({
-    color: '#5c9ca9',
-    size: 2.6,
-    sizeAttenuation: false,
-    fog: false,
-    map: texture,
-    transparent: true,
-    opacity: 0.7,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-    depthTest: false,
-  }),
-);
-ambient.frustumCulled = false;
-ambient.renderOrder = -1;
-camera.add(ambient);
-scene.add(camera);
+const particleField = createParticleField();
+scene.add(particleField.points);
 let labels = [],
   edges = [],
   flows = [],
@@ -165,13 +136,6 @@ function updateProjection() {
     innerHeight,
   );
   camera.updateProjectionMatrix();
-  const attribute = ambientGeometry.attributes.position;
-  ambientSamples.forEach(([x, y, depth], i) => {
-    const p = new THREE.Vector3(x, y, 0.5).applyMatrix4(camera.projectionMatrixInverse);
-    p.multiplyScalar(depth / -p.z);
-    attribute.setXYZ(i, p.x, p.y, p.z);
-  });
-  attribute.needsUpdate = true;
   return { width: Math.max(100, right - left), height: bottom - top, viewportHeight: innerHeight };
 }
 function frame(id = null) {
@@ -397,6 +361,7 @@ function animate(now) {
     item.element.hidden = v.z > 1 || v.z < -1;
   }
   interactionControls.update(camera, innerWidth, innerHeight);
+  particleField.update(elapsed, innerHeight * renderer.getPixelRatio());
   renderer.render(scene, camera);
 }
 requestAnimationFrame(animate);

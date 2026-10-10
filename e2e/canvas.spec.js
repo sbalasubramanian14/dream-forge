@@ -16,12 +16,12 @@ function coloredPixels(buffer, left = 50, top = 130, width = 200, height = 320) 
     }
   return count;
 }
-function changedPixels(a, b) {
+function changedPixels(a, b, left = 350, top = 100, width = 750, height = 580) {
   const first = PNG.sync.read(a),
     second = PNG.sync.read(b);
   let changed = 0;
-  for (let y = 100; y < 680; y++)
-    for (let x = 350; x < 1100; x++) {
+  for (let y = top; y < top + height; y++)
+    for (let x = left; x < left + width; x++) {
       const i = (y * first.width + x) * 4;
       if (Math.abs(first.data[i + 1] - second.data[i + 1]) > 20) changed++;
     }
@@ -216,13 +216,21 @@ test('agent camera views, zoom, and orbit work while distant particles stay visi
   await page.waitForTimeout(150);
   const side = await page.screenshot({ path: 'test-results/agent-side-view.png' });
   expect(changedPixels(front, side)).toBeGreaterThan(1000);
+  // A paused background must still move with the camera, rather than act as wallpaper.
+  expect(changedPixels(front, side, 50, 130, 250, 320)).toBeGreaterThan(100);
   await request.post('/api/camera', { data: { view: 'top', zoom: 1.4, transition: 0 } });
   await page.waitForTimeout(150);
   await expect(page.locator('#error')).toBeHidden();
   await page.mouse.move(720, 300);
+  const nearField = await page.screenshot();
   for (let i = 0; i < 5; i++) {
     await page.mouse.wheel(0, 2000);
     await page.waitForTimeout(70);
+    if (i === 0) {
+      const middleField = await page.screenshot({ path: 'test-results/particle-field-middle.png' });
+      expect(coloredPixels(middleField)).toBeGreaterThan(80);
+      expect(changedPixels(nearField, middleField, 50, 130, 250, 320)).toBeGreaterThan(100);
+    }
   }
   const distant = await page.screenshot({ path: 'test-results/extreme-zoom-out.png' });
   expect(coloredPixels(distant)).toBeGreaterThan(80);
