@@ -50,3 +50,31 @@ test('small viewport and reduced motion remain usable',async({page,request})=>{
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.getByRole('button',{name:'Dissolve',exact:true}).click();await expect(page.locator('.label')).toHaveCount(0);
 });
+
+test('canvas follows window size and refits when resizing or recovering from zoom',async({page,request})=>{
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await request.post('/api/clear',{data:{}});await page.goto('/');
+  await page.getByRole('button',{name:'Doorway',exact:true}).click();
+  for(const viewport of [{width:1280,height:620},{width:1024,height:600},{width:390,height:844}]) {
+    await page.setViewportSize(viewport);
+    await expect.poll(()=>page.evaluate(()=>{
+      const canvas=document.querySelector('canvas').getBoundingClientRect();
+      return {width:canvas.width,height:canvas.height};
+    })).toEqual(viewport);
+    const label=await page.locator('.label').boundingBox();
+    const caption=await page.locator('.caption').boundingBox();
+    expect(label.y).toBeGreaterThan(0);expect(label.y+label.height).toBeLessThan(caption.y);
+    const nav=await page.locator('nav').boundingBox();
+    expect(nav.x+nav.width).toBeLessThanOrEqual(viewport.width);expect(nav.y+nav.height).toBeLessThanOrEqual(viewport.height);
+    expect(await page.evaluate(()=>document.documentElement.scrollHeight<=innerHeight)).toBe(true);
+  }
+  await page.setViewportSize({width:1280,height:620});
+  await page.mouse.move(640,230);await page.mouse.wheel(0,-1200);
+  await page.getByRole('button',{name:'Frame all',exact:true}).click();
+  await expect.poll(async()=>{
+    const label=await page.locator('.label').boundingBox(),caption=await page.locator('.caption').boundingBox();
+    return label.y>0&&label.y+label.height<caption.y;
+  }).toBe(true);
+  await page.waitForTimeout(250);
+  await page.screenshot({path:'test-results/laptop-framing.png'});
+});

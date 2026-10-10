@@ -6,7 +6,7 @@ const $ = id => document.getElementById(id);
 const viewport=$('viewport'), labelLayer=$('labels');
 const error = message => {$('error').hidden=false; $('error').textContent=message;};
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-let paused = reduced, current, revision=-1, targetCamera=null, targetLook=null;
+let paused = reduced, current, currentFocus=null, revision=-1, targetCamera=null, targetLook=null;
 const camera = new THREE.PerspectiveCamera(48,innerWidth/innerHeight,.1,1000);
 camera.position.set(0,3,19);
 const scene=new THREE.Scene(); scene.fog=new THREE.FogExp2('#03070e',.012);
@@ -30,19 +30,34 @@ function focus(id) {send('focus',{id});}
 function updateProjection() {
   camera.aspect=innerWidth/innerHeight;
   const captionTop=document.querySelector('.caption').getBoundingClientRect().top;
-  const centerY=(110+captionTop)/2;
-  camera.setViewOffset(innerWidth,innerHeight,0,Math.max(0,innerHeight/2-centerY),innerWidth,innerHeight);
+  const top=document.querySelector('header').getBoundingClientRect().bottom+16;
+  const bottom=Math.max(top+80,captionTop-24);
+  const centerY=(top+bottom)/2;
+  camera.setViewOffset(innerWidth,innerHeight,0,innerHeight/2-centerY,innerWidth,innerHeight);
   camera.updateProjectionMatrix();
+  return {width:Math.max(100,innerWidth-80),height:bottom-top};
 }
 function frame(id=null) {
+  const area=updateProjection();
   const objects=current?.objects || [];
   const selected=id?objects.filter(o=>o.id===id):objects;
   const bounds=new THREE.Box3();
-  for(const o of selected) {const radius=o.scale*(o.shape==='helix'?2.3:1.8);const v=new THREE.Vector3(...o.position);bounds.expandByPoint(v.clone().addScalar(radius));bounds.expandByPoint(v.clone().addScalar(-radius));}
+  const extents={sphere:[1,1,1],box:[1,1,1],torus:[1.3,.3,1.3],cylinder:[1,1,1],cone:[1,1,1],arch:[1.43,1.78,.325],helix:[1,2,1]};
+  for(const o of selected) {
+    const v=new THREE.Vector3(...o.position),half=new THREE.Vector3(...extents[o.shape]).multiplyScalar(o.scale);
+    bounds.expandByPoint(v.clone().add(half));bounds.expandByPoint(v.clone().sub(half));
+    bounds.expandByPoint(new THREE.Vector3(o.position[0],o.position[1]-(o.shape==='helix'?2.2:1.8)*o.scale,o.position[2]));
+  }
+  if(!id) for(const connection of current?.connections||[]) {
+    const a=objects.find(o=>o.id===connection.from),b=objects.find(o=>o.id===connection.to);
+    const middle=new THREE.Vector3(...a.position).lerp(new THREE.Vector3(...b.position),.5);middle.y+=1.6;bounds.expandByPoint(middle);
+  }
   const center=selected.length?bounds.getCenter(new THREE.Vector3()):new THREE.Vector3();
   const size=selected.length?bounds.getSize(new THREE.Vector3()):new THREE.Vector3(12,8,10);
-  const distance=Math.max(7,Math.max(size.y,size.x/camera.aspect)/ (2*Math.tan(THREE.MathUtils.degToRad(24)))*1.5+size.z/2);
-  targetLook=center; targetCamera=center.clone().add(new THREE.Vector3(0,distance*.14,distance));
+  const tanHalf=Math.tan(THREE.MathUtils.degToRad(camera.fov/2));
+  const distance=Math.max(4,Math.max(size.y*innerHeight/area.height,size.x*innerHeight/area.width)/(2*tanHalf)*1.15+size.z/2);
+  controls.maxDistance=Math.max(180,distance*3);
+  targetLook=center; targetCamera=center.clone().add(new THREE.Vector3(0,0,distance));
   if(paused) {camera.position.copy(targetCamera);controls.target.copy(center);targetCamera=null;targetLook=null;}
   const o=objects.find(o=>o.id===id);$('detail').hidden=!o;
   if(o) {$('detail-title').textContent=o.label||o.id;$('detail-body').textContent=o.description||'No additional description provided.';}
@@ -75,7 +90,7 @@ function apply(state) {
     document.querySelectorAll('[data-demo]').forEach(b=>b.classList.toggle('active',({portal:'An idea takes shape',architecture:'Follow a request',helix:'Two paths, intertwined'})[b.dataset.demo]===current.title));
     if(paused) {positions.set(targets);colors.set(desiredColors);geometry.attributes.position.needsUpdate=true;geometry.attributes.color.needsUpdate=true;}
   }
-  updateProjection();frame(state.focus);
+  currentFocus=state.focus;frame(currentFocus);
 }
 const events=new EventSource('/api/events');events.onopen=()=>{$('connection').textContent='Canvas connected';$('connection').className='live';$('error').hidden=true;};events.onerror=()=>{$('connection').textContent='Reconnecting…';$('connection').className='';};events.onmessage=event=>{try{apply(JSON.parse(event.data));}catch(e){error(`Unable to display scene: ${e.message}`);}};
 const demos={
@@ -87,7 +102,7 @@ document.querySelectorAll('[data-demo]').forEach(button=>button.addEventListener
 $('reset').onclick=()=>send('clear',{});$('frame').onclick=()=>focus(null);$('close-detail').onclick=()=>focus(null);
 function motionButton() {$('motion').textContent=paused?'Resume motion':'Pause motion';$('motion').setAttribute('aria-pressed',String(paused));}
 $('motion').onclick=()=>{paused=!paused;motionButton();};motionButton();
-addEventListener('resize',()=>{updateProjection();renderer.setSize(innerWidth,innerHeight);});
+addEventListener('resize',()=>{renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);frame(currentFocus);});
 let last=performance.now(),elapsed=0;
 function animate(now) {
   requestAnimationFrame(animate);const dt=Math.min((now-last)/1000,.05);last=now;
