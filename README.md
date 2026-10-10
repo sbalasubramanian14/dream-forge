@@ -169,6 +169,10 @@ For agent-defined geometry, use `shape: "pointcloud"` and provide `points`, an a
 
 Demo names: `portal`, `tree`, `mechanism`, `orbits`, `rocket`, `architecture`, `helix`, `solar-system`, and `walkthrough`. Example JSON files are shared by the browser selector and CLI, so either interface produces the same scene.
 
+## Adaptive labels
+
+Object labels and object-attached controls sit outside projected geometry, use leader lines, and avoid other annotations and interface panels. Tiny objects and crowded buttons become compact markers. Hover or keyboard-focus a marker to reveal its name; click it to inspect or activate it. Zooming in restores full labels. Off-screen annotations and captions without a clear placement are hidden. Agent-positioned screen buttons keep their authored positions.
+
 ## Agent camera control
 
 Call `set_camera` through MCP, `POST /api/camera`, or the CLI:
@@ -296,6 +300,7 @@ Source layout:
 - `web/`: Three.js canvas, particle geometry, browser controls.
 - `web/camera-controller.js`: camera framing, smooth viewpoint transitions, and orbit.
 - `web/interactions.js`: scene-defined buttons and hotspots.
+- `web/annotations.js`: projected object bounds, collision-aware labels, leader lines, and compact markers.
 - `web/particle-field.js`: surrounding 3D dust, depth attenuation, and distance-scale visibility.
 - `src/`: validated scene contract, local HTTP server, MCP tools.
 - `src/state.js`: pure state transitions and the action registry.

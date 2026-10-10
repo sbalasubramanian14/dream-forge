@@ -5,6 +5,7 @@ import { constructs } from '/catalog.js';
 import { createCameraController } from '/camera-controller.js';
 import { createInteractionControls } from '/interactions.js';
 import { createParticleField } from '/particle-field.js';
+import { createAnnotations } from '/annotations.js';
 
 const $ = (id) => document.getElementById(id);
 const viewport = $('viewport'),
@@ -112,6 +113,10 @@ async function send(path, body) {
 function focus(id) {
   send('focus', { id });
 }
+const annotations = createAnnotations(labelLayer);
+const annotationPanels = [
+  ...document.querySelectorAll('header, .caption, footer, #detail, #notice'),
+];
 const interactionControls = createInteractionControls({
   layer: labelLayer,
   toolbar: $('agent-controls'),
@@ -216,15 +221,13 @@ function apply(state) {
               .add(new THREE.Vector3(...o.position)),
           );
       const anchor = bounds.getCenter(new THREE.Vector3());
-      anchor.y = bounds.min.y - 0.4;
       const element = document.createElement('button');
       element.className = 'label';
       element.textContent = o.label || o.id;
       element.addEventListener('click', () => focus(o.id));
       if (o.show_label !== false) {
         labelLayer.append(element);
-        labels.push({ element, point: anchor });
-        bounds.expandByPoint(anchor);
+        labels.push({ element, point: anchor, objectId: o.id });
       }
       objectBounds.set(o.id, bounds);
     });
@@ -269,6 +272,7 @@ function apply(state) {
     }
   }
   interactionControls.render(state, current, objectBounds);
+  annotations.setItems([...labels, ...edges, ...interactionControls.annotations()]);
   currentFocus = state.focus;
   cameraCommand = state.camera || {};
   if (changed || state.camera_revision !== cameraRevision) frame(currentFocus);
@@ -356,13 +360,23 @@ function animate(now) {
     p.needsUpdate = true;
   }
   cameraController.update(dt, paused);
-  for (const item of [...labels, ...edges]) {
-    const v = item.point.clone().project(camera);
-    item.element.style.left = `${(v.x * 0.5 + 0.5) * innerWidth}px`;
-    item.element.style.top = `${(-v.y * 0.5 + 0.5) * innerHeight}px`;
-    item.element.hidden = v.z > 1 || v.z < -1;
-  }
   interactionControls.update(camera, innerWidth, innerHeight);
+  const reserved = annotationPanels
+    .filter((panel) => !panel.hidden)
+    .map((panel) => panel.getBoundingClientRect());
+  annotations.update(
+    camera,
+    innerWidth,
+    innerHeight,
+    new Map(
+      [...objectBounds].filter(
+        ([id]) => current?.objects.find((o) => o.id === id)?.show_label !== false,
+      ),
+    ),
+    [...reserved, ...interactionControls.screenBounds()],
+    currentFocus,
+    now,
+  );
   particleField.update(elapsed, innerHeight * renderer.getPixelRatio());
   renderer.render(scene, camera);
 }

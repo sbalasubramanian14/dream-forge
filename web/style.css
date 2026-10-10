@@ -175,6 +175,49 @@ a:focus-visible {
   transform: translate(-50%, -50%);
   text-shadow: 0 1px 5px #000;
 }
+.annotation-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.annotation-lines line {
+  stroke: #6d9fac;
+  stroke-width: 0.7;
+  opacity: 0.5;
+}
+.annotation.label,
+.annotation.hotspot,
+.annotation.edge-label {
+  transform: none;
+  z-index: 1;
+}
+.annotation.is-compact {
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 0;
+  overflow: visible;
+  background: #17333e;
+}
+.annotation.is-compact:hover::after,
+.annotation.is-compact:focus-visible::after {
+  content: attr(data-label);
+  position: absolute;
+  bottom: 22px;
+  left: 0;
+  padding: 6px 9px;
+  border: 1px solid #284952;
+  border-radius: 4px;
+  background: #07111e;
+  color: #b9e8ed;
+  font-size: 11px;
+  white-space: nowrap;
+}
 #detail {
   position: absolute;
   z-index: 4;

@@ -12,5 +12,6 @@ Dream Forge is a local agent-driven particle canvas. Keep scene rendering indepe
 - Keep the dark particle-first canvas spacious. Labels and controls should support understanding without obscuring constructs.
 - Describe procedural visuals and metaphors honestly; do not claim Gaussian reconstruction, live traces, or physical accuracy.
 - Keep camera behavior in `web/camera-controller.js`, control rendering in `web/interactions.js`, and pure action/state transitions in `src/state.js`.
+- Keep annotation projection and collision layout in `web/annotations.js`. Object labels, edge captions, and object hotspots share this layout; screen controls retain agent-defined placements.
 - Extend the discriminated action schema, registry, and behavioral tests together for new actions. Keep snapshots immutable and preserve validation before mutation.
 - Format with `npm run format`; verify with `npm run format:check`. Browser tests use their own server on port 4319 and must not modify the user's live canvas.

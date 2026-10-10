@@ -28,6 +28,86 @@ function changedPixels(a, b, left = 350, top = 100, width = 750, height = 580) {
   return changed;
 }
 
+async function assertClearAnnotations(page, expected) {
+  await expect(page.locator('.label:visible')).toHaveCount(expected);
+  const items = await page.locator('.annotation:visible').evaluateAll((elements) =>
+    elements.map((element) => {
+      const rect = element.getBoundingClientRect();
+      return {
+        left: rect.left,
+        right: rect.right,
+        top: rect.top,
+        bottom: rect.bottom,
+        anchorX: Number(element.dataset.anchorX),
+        anchorY: Number(element.dataset.anchorY),
+      };
+    }),
+  );
+  for (const item of items) {
+    // The label must not cover its own attachment point.
+    expect(
+      item.anchorX < item.left ||
+        item.anchorX > item.right ||
+        item.anchorY < item.top ||
+        item.anchorY > item.bottom,
+    ).toBe(true);
+  }
+  for (let i = 0; i < items.length; i++)
+    for (let j = i + 1; j < items.length; j++) {
+      const a = items[i],
+        b = items[j];
+      expect(a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top).toBe(
+        false,
+      );
+    }
+}
+
+test('adaptive annotations keep solar and dense engineering overviews clear', async ({
+  page,
+  request,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+  await page.getByRole('combobox', { name: 'Choose a construct' }).selectOption('solar-system');
+  await page.waitForTimeout(180);
+  await assertClearAnnotations(page, 10);
+  await page.screenshot({ path: 'test-results/solar-adaptive-labels.png' });
+  const objects = Array.from({ length: 24 }, (_, i) => ({
+    id: `module-${i}`,
+    shape: 'box',
+    label: `Engineering module ${i + 1}`,
+    scale: 0.16,
+    position: [((i % 6) - 2.5) * 0.7, (Math.floor(i / 6) - 1.5) * 0.7, 0],
+  }));
+  expect(
+    (
+      await request.post('/api/scene', {
+        data: {
+          title: 'Dense engineering overview',
+          objects,
+          camera: { zoom: 0.1, transition: 0 },
+        },
+      })
+    ).ok(),
+  ).toBe(true);
+  await page.waitForTimeout(180);
+  await assertClearAnnotations(page, 24);
+  expect(await page.locator('.label.is-compact:visible').count()).toBeGreaterThan(12);
+  await page.screenshot({ path: 'test-results/dense-adaptive-labels.png' });
+  await page.getByRole('button', { name: 'Engineering module 1', exact: true }).hover();
+  await page.getByRole('button', { name: 'Engineering module 1', exact: true }).click();
+  await expect(page.locator('#detail-title')).toHaveText('Engineering module 1');
+  await expect
+    .poll(async () => (await (await request.get('/api/state')).json()).focus)
+    .toBe('module-0');
+  await request.post('/api/camera', { data: { zoom: 0.1, transition: 0 } });
+  await page.setViewportSize({ width: 430, height: 850 });
+  await page.waitForTimeout(180);
+  await assertClearAnnotations(page, 24);
+  await page.screenshot({ path: 'test-results/dense-adaptive-mobile.png' });
+  await expect(page.locator('#error')).toBeHidden();
+});
+
 test('particle canvas assembles, updates, focuses, orbits, pauses, and dissolves', async ({
   page,
   request,

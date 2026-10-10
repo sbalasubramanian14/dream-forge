@@ -40,8 +40,7 @@ export function createInteractionControls({ layer, toolbar, notice, send }) {
         else {
           const box = bounds.get(interaction.object_id);
           const point = box.getCenter(new THREE.Vector3());
-          point.y = box.max.y + 0.25;
-          hotspots.push({ element: button, point });
+          hotspots.push({ element: button, point, objectId: interaction.object_id });
         }
       }
     }
@@ -53,16 +52,10 @@ export function createInteractionControls({ layer, toolbar, notice, send }) {
 
   function update(camera, width, height) {
     for (const hotspot of hotspots) {
+      if (!hotspot.screen) continue; // Object hotspots share collision layout with labels.
       let x, y;
-      if (hotspot.screen) {
-        x = hotspot.screen[0] * width;
-        y = hotspot.screen[1] * height;
-      } else {
-        const point = hotspot.point.clone().project(camera);
-        hotspot.element.hidden = point.z > 1 || point.z < -1;
-        x = (point.x * 0.5 + 0.5) * width;
-        y = (-point.y * 0.5 + 0.5) * height;
-      }
+      x = hotspot.screen[0] * width;
+      y = hotspot.screen[1] * height;
       const halfWidth = hotspot.element.offsetWidth / 2;
       const halfHeight = hotspot.element.offsetHeight / 2;
       hotspot.element.style.left = `${Math.max(halfWidth + 8, Math.min(width - halfWidth - 8, x))}px`;
@@ -70,5 +63,13 @@ export function createInteractionControls({ layer, toolbar, notice, send }) {
     }
   }
 
-  return { render, update };
+  return {
+    render,
+    update,
+    annotations: () => hotspots.filter((hotspot) => !hotspot.screen),
+    screenBounds: () =>
+      hotspots
+        .filter((hotspot) => hotspot.screen)
+        .map((hotspot) => hotspot.element.getBoundingClientRect()),
+  };
 }
