@@ -1,24 +1,30 @@
 ---
 name: dream-forge
-description: Express explanations as interactive 3D particle constructs in the local Dream Forge canvas. Use when the user asks for Dream Forge or an explorable spatial explanation; requires Dream Forge MCP tools or CLI access.
+description: Build interactive 3D particle explanations in Dream Forge, with an isolated canvas per conversation, camera control, authored actions, redraw transitions, and saved history. Use when the user asks for Dream Forge or an explorable spatial explanation; requires MCP tools or the local CLI.
 ---
 
 # Dream Forge
 
-Build a visual explanation the user can explore while continuing the conversation. Dream Forge renders procedural point clouds, not arbitrary text-to-3D assets or real Gaussian reconstructions.
+Dream Forge displays agent-authored procedural particles, not arbitrary text-to-3D assets or Gaussian reconstructions. Keep the user-facing explanation truthful about illustrative scale and omitted details.
 
-If `show_scene`, `get_scene`, `focus_object`, and `clear_canvas` are available through the Dream Forge MCP server, use those tools. Read [references/scenes.md](references/scenes.md) for scene fields and examples. Tool names may be prefixed by the client.
+## Start once per conversation
 
-If only shell access is available, use `dream-forge show <scene.json>` after starting `dream-forge start` in a persistent terminal. If the CLI is not on PATH, locate the installed repository and use `node <absolute-repo-path>/bin/dream-forge.js`. Do not assume the current project contains the installation. Installation instructions live in the repository README.
+With MCP, call `get_capabilities` once before composing. It returns the current complete JSON schema, semantic rules, limits, and this feature guide. Call `create_session` with a meaningful name, retain its `session.id`, and pass it as `session_id` on every subsequent tool call. Open or link the returned URL. Do not create another session for every reply, reuse a different conversation's canvas, or assume one MCP process always represents one chat. To resume a requested existing canvas, use `list_sessions` and retain its ID instead.
 
-## Choosing a construct
+With shell access, locate the installed repository and use `node <absolute-repo-path>/bin/dream-forge.js`. Start the server if needed, call `session new <name>` once, and pass `--session <returned-id>` on every scene/camera/history command. `capabilities` exposes the same guide. The unscoped CLI and bare localhost URL use the shared `local` sandbox; avoid those in concurrent agent conversations.
 
-Choose shapes that help understanding: boxes for components, cylinders for storage, spheres for actors, toruses for cycles, helixes for paired sequences, and arches for doorways. For richer constructs use `tree`, `gear`, `rocket`, or `ruins`. Compose parts with Euler XYZ `rotation` in radians. Use `pointcloud` with explicit local points for geometry beyond the built-in catalog. Use a few readable objects before expanding. Supply labels and descriptions; an attractive shape alone is not an explanation.
+## Compose in one pass
 
-Space objects explicitly with `position`. All omitted positions default to the origin and overlap. Keep stable IDs and positions across follow-up scenes. Use connections only for relationships you can explain, and note that animated flow runs from `from` to `to`.
+Read [references/scenes.md](references/scenes.md) for the full scene contract, cameras, actions, steps, history, and transitions. Choose a few readable semantic objects before expanding. Position every object explicitly; omitted positions overlap at the origin. Use stable IDs across revisions to preserve particle continuity. Build custom geometry as `pointcloud` data when built-in shapes are insufficient. Labels, descriptions, and controls should explain the construct rather than expose implementation details.
 
-Read the existing scene before replacing it when continuity matters. `show_scene` replaces the whole scene. Focus the relevant object after showing it. Summarize the explanation in text and give the user the canvas URL returned by the tool.
+Validate the complete payload with `validate_scene` and the same session ID before `show_scene`. Shell equivalent: `validate scene.json`, then `show scene.json --session <id>`. Fix all reported semantic errors together. Showing a scene replaces it entirely; omitted objects disappear. A tool success confirms acceptance, not visual quality. Inspect a screenshot when browser tools are available.
 
-Use `set_camera` to choose a side, top, or isometric view, automatically fit a target, zoom relative to its bounds, or orbit it slowly. Let the human interrupt camera motion. Author `actions` for toolbar buttons, screen buttons, or object hotspots when exploration helps. Author `steps` as snapshots for a guided explanation and connect them with next/previous/goto actions. Read the reference for the interaction contract. `notify` records a user intent; it does not wake the agent automatically. Inspect `get_scene.interactions` before responding to a click-driven request.
+Choose `assembly: {mode: "morph", duration: 1.6}` for direct reshaping, or `mode: "dissolve"` to disperse and rebuild. These also apply to step snapshots. Do not clear the canvas before every revision: history and transitions already handle replacement. Fresh sessions start empty, and `clear_canvas` keeps earlier history.
 
-A tool success means a scene was accepted, not that visual QA passed. Inspect the browser when possible. Distinguish illustrative metaphors from real data or simulations. Do not present internal hidden reasoning as visible content; visualize the user-facing explanation and proposed actions.
+Use camera tools to present an appropriate view and focus. All-camera framing is preferable for an overview; focus a part for detailed discussion. Let human input interrupt agent orbit. Author actions and steps when they help exploration; object hotspots avoid geometry and label collisions, while screen controls keep their authored positions. Tiny objects use compact markers with hover/focus names.
+
+## Continue the same canvas
+
+Read `get_scene` before expanding an explanation. It includes the active step, requested camera, session metadata, history summaries, and the last 32 interactions. Use `list_history` and `restore_history` for earlier scenes; restoration keeps newer history available. `notify` records human intent without automatically waking the agent. Read those events when the user asks to act on a click.
+
+Reply with the canvas URL and a brief explanation of the useful controls. Do not promise physical accuracy, measured geometry, current orbital positions, persistence outside the configured local store, or hidden reasoning visualization.

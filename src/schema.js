@@ -62,6 +62,13 @@ export const interactionSchema = z
   })
   .strict();
 const snapshotFields = {
+  assembly: z
+    .object({
+      mode: z.enum(['morph', 'dissolve']).default('morph'),
+      duration: z.number().min(0.2).max(8).default(1.6),
+    })
+    .strict()
+    .default({ mode: 'morph', duration: 1.6 }),
   title: z.string().max(160).default('Untitled construct'),
   explanation: z.string().max(4000).default(''),
   objects: z.array(objectSchema).max(24),

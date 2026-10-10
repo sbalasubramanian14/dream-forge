@@ -9,6 +9,7 @@ export function createState() {
     camera: defaultCamera(),
     camera_revision: 0,
     revision: 0,
+    scene_revision: 0,
     interactions: [],
   };
 }
@@ -28,6 +29,7 @@ export function replaceScene(state, input) {
     camera: scene.camera ?? defaultCamera(),
     camera_revision: state.camera_revision + 1,
     revision: state.revision + 1,
+    scene_revision: state.scene_revision + 1,
     interactions: [],
   };
 }
@@ -65,6 +67,7 @@ export function goToStep(state, index) {
     camera: snapshot.camera ?? defaultCamera(),
     camera_revision: state.camera_revision + 1,
     revision: state.revision + 1,
+    scene_revision: state.scene_revision + 1,
   };
 }
 

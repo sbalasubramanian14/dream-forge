@@ -1,6 +1,6 @@
 {
   "name": "@sbalasubramanian14/dream-forge",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "A local particle canvas where AI agents forge explanations into 3D constructs.",
   "type": "module",
   "private": true,

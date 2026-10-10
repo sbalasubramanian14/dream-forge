@@ -1,15 +1,14 @@
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+import { SessionStore } from './sessions.js';
+import { getCapabilities } from './capabilities.js';
+import { sceneSchema } from './schema.js';
+import { VERSION } from './version.js';
 import { emptyScene } from './schema.js';
-import {
-  createState,
-  replaceScene,
-  focusObject,
-  setCamera,
-  performAction,
-  goToStep,
-} from './state.js';
+import { replaceScene, focusObject, setCamera, performAction, goToStep } from './state.js';
 import { constructs } from '../web/catalog.js';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -23,6 +22,8 @@ const assets = new Map([
   ['/interactions.js', ['web/interactions.js', 'text/javascript']],
   ['/particle-field.js', ['web/particle-field.js', 'text/javascript']],
   ['/annotations.js', ['web/annotations.js', 'text/javascript']],
+  ['/history.js', ['web/history.js', 'text/javascript']],
+  ['/particle-transition.js', ['web/particle-transition.js', 'text/javascript']],
   ['/three.js', ['node_modules/three/build/three.module.js', 'text/javascript']],
   ['/three.core.js', ['node_modules/three/build/three.core.js', 'text/javascript']],
   [
@@ -36,11 +37,17 @@ for (const construct of constructs)
     'application/json',
   ]);
 
-export async function startServer(port = 4317) {
-  let state = createState();
-  const clients = new Set();
-  const broadcast = () => {
-    for (const client of clients) client.write(`data: ${JSON.stringify(state)}\n\n`);
+export async function startServer(port = 4317, options = {}) {
+  const persist = options.persist ?? process.env.DREAM_FORGE_PERSIST !== '0';
+  const directory =
+    options.directory ??
+    join(process.env.DREAM_FORGE_DATA_DIR || join(homedir(), '.dream-forge'), String(port));
+  const store = new SessionStore(persist ? directory : null);
+  await store.initialize();
+  const clients = new Map();
+  const broadcast = (id, state) => {
+    for (const [client, sessionId] of clients)
+      if (sessionId === id) client.write(`data: ${JSON.stringify(state)}\n\n`);
   };
   const server = createServer(async (req, res) => {
     const json = (code, data) => {
@@ -53,17 +60,26 @@ export async function startServer(port = 4317) {
         return json(403, { error: 'Only local hosts are accepted' });
       if (req.headers.origin && !allowed.map((h) => `http://${h}`).includes(req.headers.origin))
         return json(403, { error: 'Cross-origin requests are not accepted' });
-      const path = new URL(req.url, `http://127.0.0.1:${port}`).pathname;
+      const url = new URL(req.url, `http://127.0.0.1:${port}`);
+      const path = url.pathname;
+      const sessionId = url.searchParams.get('session') || 'local';
       if (req.method === 'GET' && path === '/api/health')
-        return json(200, { app: 'dream-forge', version: '0.3.0' });
-      if (req.method === 'GET' && path === '/api/state') return json(200, state);
+        return json(200, { app: 'dream-forge', version: VERSION });
+      if (req.method === 'GET' && path === '/api/capabilities')
+        return json(200, await getCapabilities());
+      if (req.method === 'GET' && path === '/api/sessions')
+        return json(200, { sessions: store.list() });
+      if (req.method === 'GET' && path === '/api/state') return json(200, store.state(sessionId));
+      if (req.method === 'GET' && path === '/api/history')
+        return json(200, { history: store.state(sessionId).history });
       if (req.method === 'GET' && path === '/api/events') {
+        const state = store.state(sessionId);
         res.writeHead(200, {
           'Content-Type': 'text/event-stream',
           'Cache-Control': 'no-cache',
           Connection: 'keep-alive',
         });
-        clients.add(res);
+        clients.set(res, sessionId);
         res.write(`data: ${JSON.stringify(state)}\n\n`);
         req.on('close', () => clients.delete(res));
         return;
@@ -77,6 +93,10 @@ export async function startServer(port = 4317) {
           '/api/camera',
           '/api/action',
           '/api/step',
+          '/api/sessions',
+          '/api/restore',
+          '/api/validate',
+          '/api/shutdown',
         ].includes(path)
       ) {
         if (!req.headers['content-type']?.startsWith('application/json'))
@@ -92,16 +112,33 @@ export async function startServer(port = 4317) {
           body += chunk;
         }
         const data = JSON.parse(body || '{}');
+        if (path === '/api/shutdown') {
+          json(200, { stopped: true });
+          setTimeout(() => {
+            server.closeAllConnections();
+            server.close();
+          }, 50).unref();
+          return;
+        }
+        if (path === '/api/sessions') return json(200, await store.create(data));
+        if (path === '/api/validate')
+          return json(200, { valid: true, scene: sceneSchema.parse(data) });
+        if (path === '/api/restore') {
+          const state = await store.restore(sessionId, data.id);
+          broadcast(sessionId, state);
+          return json(200, state);
+        }
         const handlers = {
-          scene: () => replaceScene(state, data),
-          clear: () => replaceScene(state, emptyScene()),
-          focus: () => focusObject(state, data.id),
-          camera: () => setCamera(state, data),
-          action: () => performAction(state, data.id),
-          step: () => goToStep(state, data.index),
+          scene: (state) => replaceScene(state, data),
+          clear: (state) => replaceScene(state, emptyScene()),
+          focus: (state) => focusObject(state, data.id),
+          camera: (state) => setCamera(state, data),
+          action: (state) => performAction(state, data.id),
+          step: (state) => goToStep(state, data.index),
         };
-        state = handlers[path.slice('/api/'.length)]();
-        broadcast();
+        const command = path.slice('/api/'.length);
+        const state = await store.mutate(sessionId, handlers[command]);
+        broadcast(sessionId, state);
         return json(200, state);
       }
       if (req.method === 'GET' && assets.has(path)) {
@@ -121,12 +158,12 @@ export async function startServer(port = 4317) {
     }
   });
   const heartbeat = setInterval(() => {
-    for (const client of clients) client.write(': heartbeat\n\n');
+    for (const client of clients.keys()) client.write(': heartbeat\n\n');
   }, 15000);
   heartbeat.unref();
   server.on('close', () => {
     clearInterval(heartbeat);
-    for (const client of clients) client.end();
+    for (const client of clients.keys()) client.end();
   });
   try {
     await new Promise((resolve, reject) => {

@@ -10,7 +10,7 @@ export default defineConfig({
   },
   webServer: {
     command: 'node bin/dream-forge.js start',
-    env: { DREAM_FORGE_PORT: '4319' },
+    env: { DREAM_FORGE_PORT: '4319', DREAM_FORGE_PERSIST: '0' },
     url: 'http://127.0.0.1:4319/api/health',
     reuseExistingServer: false,
   },

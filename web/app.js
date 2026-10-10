@@ -6,6 +6,8 @@ import { createCameraController } from '/camera-controller.js';
 import { createInteractionControls } from '/interactions.js';
 import { createParticleField } from '/particle-field.js';
 import { createAnnotations } from '/annotations.js';
+import { createParticleTransition } from '/particle-transition.js';
+import { createHistory } from '/history.js';
 
 const $ = (id) => document.getElementById(id);
 const viewport = $('viewport'),
@@ -14,13 +16,16 @@ const error = (message) => {
   $('error').hidden = false;
   $('error').textContent = message;
 };
+const sessionId = new URL(location.href).searchParams.get('session') || 'local';
+const apiUrl = (path) => `/api/${path}?session=${encodeURIComponent(sessionId)}`;
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 let paused = reduced,
   current,
   currentFocus = null,
   cameraCommand = {},
   revision = -1,
-  cameraRevision = -1;
+  cameraRevision = -1,
+  sceneRevision = -1;
 const camera = new THREE.PerspectiveCamera(48, innerWidth / innerHeight, 0.1, 1000);
 camera.position.set(0, 3, 19);
 const scene = new THREE.Scene();
@@ -84,6 +89,13 @@ const material = new THREE.PointsMaterial({
   blending: THREE.AdditiveBlending,
   depthWrite: false,
 });
+const particleTransition = createParticleTransition({
+  positions,
+  targets,
+  colors,
+  desiredColors,
+  idle,
+});
 const cloud = new THREE.Points(geometry, material);
 cloud.frustumCulled = false;
 scene.add(cloud);
@@ -97,7 +109,7 @@ const flowGroup = new THREE.Group();
 scene.add(flowGroup);
 async function send(path, body) {
   try {
-    const response = await fetch(`/api/${path}`, {
+    const response = await fetch(apiUrl(path), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -113,9 +125,17 @@ async function send(path, body) {
 function focus(id) {
   send('focus', { id });
 }
+const history = createHistory({
+  button: $('history-toggle'),
+  panel: $('history-panel'),
+  list: $('history-list'),
+  sessionList: $('session-list'),
+  sessionLabel: $('session-label'),
+  send,
+});
 const annotations = createAnnotations(labelLayer);
 const annotationPanels = [
-  ...document.querySelectorAll('header, .caption, footer, #detail, #notice'),
+  ...document.querySelectorAll('header, .caption, footer, #detail, #notice, #history-panel'),
 ];
 const interactionControls = createInteractionControls({
   layer: labelLayer,
@@ -172,8 +192,10 @@ function apply(state) {
   revision = state.revision;
   const snapshot = state.step >= 0 ? state.scene.steps[state.step] : state.scene;
   const display = { ...snapshot, actions: snapshot.actions ?? state.scene.actions ?? [] };
-  const changed = JSON.stringify(display) !== JSON.stringify(current);
+  const changed =
+    JSON.stringify(display) !== JSON.stringify(current) || state.scene_revision !== sceneRevision;
   current = display;
+  history.render(state);
   $('title').textContent = current.title;
   $('explanation').textContent = current.explanation;
   if (changed) {
@@ -264,6 +286,7 @@ function apply(state) {
     }
     $('construct').value =
       constructs.find((c) => (c.primaryId || c.id) === current.objects[0]?.id)?.id || '';
+    particleTransition.begin(current.assembly, paused);
     if (paused) {
       positions.set(targets);
       colors.set(desiredColors);
@@ -277,8 +300,9 @@ function apply(state) {
   cameraCommand = state.camera || {};
   if (changed || state.camera_revision !== cameraRevision) frame(currentFocus);
   cameraRevision = state.camera_revision;
+  sceneRevision = state.scene_revision;
 }
-const events = new EventSource('/api/events');
+const events = new EventSource(apiUrl('events'));
 events.onopen = () => {
   $('connection').textContent = 'Canvas connected';
   $('connection').className = 'live';
@@ -338,15 +362,12 @@ function animate(now) {
   last = now;
   if (!paused) {
     elapsed += dt;
-    const blend = 1 - Math.exp(-dt * 2.8);
-    for (let i = 0; i < count; i++) {
-      const j = i * 3;
-      for (let k = 0; k < 3; k++) {
-        const drift = current?.objects.length ? 0 : Math.sin(elapsed * 0.2 + i * 0.02 + k) * 0.18;
-        positions[j + k] += (targets[j + k] + drift - positions[j + k]) * blend;
-        colors[j + k] += (desiredColors[j + k] - colors[j + k]) * blend;
-      }
-    }
+    renderer.domElement.dataset.assembly = particleTransition.update(
+      dt,
+      paused,
+      elapsed,
+      !current?.objects.length,
+    );
     geometry.attributes.position.needsUpdate = true;
     geometry.attributes.color.needsUpdate = true;
   }

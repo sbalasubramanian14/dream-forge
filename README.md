@@ -4,7 +4,7 @@
 
 Dream Forge is a local 3D particle canvas for AI explanations. It begins as a field of dots. Codex, Claude Code, or another tool-using agent sends a structured scene, and the dots assemble into constructs. Follow-up explanations can reshape the scene, animate connections, or focus an object.
 
-This first version uses procedural point clouds and particle morphing. It is not a Gaussian-splat reconstruction engine or an arbitrary text-to-3D model generator.
+Dream Forge uses procedural point clouds and particle morphing. It is not a Gaussian-splat reconstruction engine or an arbitrary text-to-3D model generator.
 
 ![Dream Forge doorway particle construct](docs/preview.png)
 
@@ -56,7 +56,7 @@ Restart Claude Code and use `/mcp` to check the connection. Then ask:
 
 > Use Dream Forge to show how authentication works in this project. Build a labeled particle scene and focus each component as you explain it.
 
-The MCP process starts the local canvas automatically if the port is free, or connects to a Dream Forge server already running there. Open the URL returned by a tool call. For a canvas that stays available independently of agent sessions, run `npm start` first.
+The MCP process starts a shared local server in the background if needed, or connects to a running server of the same version. The background server survives individual agent clients. Each MCP process receives a private empty canvas; the skill creates an explicit conversation canvas and passes its session ID to every tool call, which also works when a host shares one MCP process across chats. Open the session-specific URL returned by a tool call. For a canvas that stays available independently of agent sessions, run `npm start` first.
 
 ### Other MCP clients
 
@@ -86,9 +86,41 @@ node "D:/aiprojects/dream-forge/bin/dream-forge.js" install-skill codex project
 node "D:/aiprojects/dream-forge/bin/dream-forge.js" install-skill claude project
 ```
 
-This copies the skill into `.agents/skills/dream-forge/` for Codex or `.claude/skills/dream-forge/` for Claude Code. To install for all projects, replace `project` with `user`; this uses `~/.agents/skills/` or `~/.claude/skills/`. Existing skill folders are never overwritten automatically.
+This copies the skill into `.agents/skills/dream-forge/` for Codex or `.claude/skills/dream-forge/` for Claude Code. To install for all projects, replace `project` with `user`; this uses `~/.agents/skills/` or `~/.claude/skills/`. Existing skill folders are never overwritten automatically. To update an installed copy deliberately, repeat the command with `--update`; it replaces bundled skill files while preserving unrelated files.
 
 Restart the agent, then invoke `$dream-forge` in Codex or `/dream-forge` in Claude Code. MCP setup is still required if you want tool calls. For a shell-only workflow, run `npm link` in the Dream Forge repository once to make `dream-forge` available on PATH, or call the absolute Node entrypoint directly.
+
+## Isolated sessions and saved history
+
+Use one canvas per conversation. New canvases start as an empty particle field even when other saved canvases exist. Every update in that conversation uses the same session ID and URL. Sessions isolate geometry, camera requests, steps, interactions, event streams, and history.
+
+MCP agents use `get_capabilities`, then `create_session`, and pass the returned `session.id` as `session_id` on subsequent tools. A separate MCP process also gets a private default canvas automatically, but explicit conversation IDs avoid assumptions about how a host shares MCP connections. The optional skill teaches this workflow.
+
+For shell agents:
+
+```sh
+node bin/dream-forge.js session new "My explanation"
+# Retain the returned session_id, then use it on every command:
+node bin/dream-forge.js show scene.json --session YOUR_SESSION_ID
+node bin/dream-forge.js camera isometric --session YOUR_SESSION_ID
+node bin/dream-forge.js history --session YOUR_SESSION_ID
+```
+
+Open the returned URL, such as `http://127.0.0.1:4317/?session=YOUR_SESSION_ID`. `DREAM_FORGE_SESSION` is an alternative for a dedicated shell. Unscoped commands and the bare localhost URL use the shared `local` sandbox for manual demos.
+
+The **History** drawer lists previous scenes and guided steps, and links to saved canvases. Select a snapshot to restore it without discarding newer history. Scene, clear, and step changes are recorded; camera-only updates and notifications are not. History retains up to 50 snapshots and 16 MiB per session, removing the oldest first.
+
+State and history persist under `~/.dream-forge/<port>/` by default. Set `DREAM_FORGE_DATA_DIR` to change the parent directory, or `DREAM_FORGE_PERSIST=0` for temporary in-memory canvases. Agent sessions persist after the agent closes. New sessions remain empty; resuming a saved session requires its explicit ID. The background server keeps running until `node bin/dream-forge.js stop` is called (this stops all canvases on that port); run `npm start` in a dedicated terminal instead if you want direct control of its lifetime.
+
+## Compose with the full capability guide
+
+MCP includes server instructions and `get_capabilities`, which exposes the complete current JSON schema, cross-reference rules, limits, and feature guide. The optional skill teaches the agent to read it once, create a conversation canvas, validate its complete scene, and draw it. `validate_scene` checks a payload without modifying the canvas; CLI equivalent: `node bin/dream-forge.js validate scene.json`. This catches structural errors and broken references before drawing; visual quality still requires inspection.
+
+After updating Dream Forge, restart its running server and your agent's MCP connection, and update installed copies of the skill with `install-skill codex user --update` or `install-skill claude user --update` (use `project` for project installations). Existing skill installations are not overwritten automatically.
+
+Example single prompt after setup:
+
+> Use Dream Forge to explain this system in a fresh canvas. Read its capabilities first, validate the scene, give me an overview and clickable steps, and preserve history as you refine it.
 
 ## CLI reference
 
@@ -104,6 +136,8 @@ Restart the agent, then invoke `$dream-forge` in Codex or `/dream-forge` in Clau
 | `dream-forge clear`                                         | Dissolve into the idle particle field             |
 | `dream-forge status`                                        | Print the current scene, focus, and revision      |
 | `dream-forge install-skill <codex\|claude> [project\|user]` | Install agent guidance                            |
+
+Additional commands: `stop` (all canvases on this port), `session new [name]`, `session list`, `capabilities`, `validate scene.json`, `history`, and `restore history-id`. Add `--session ID` to commands that act on a canvas. Skill updates accept `--update`.
 
 Without `npm link`, use `node bin/dream-forge.js` in place of `dream-forge` from the repository.
 
@@ -172,6 +206,10 @@ Demo names: `portal`, `tree`, `mechanism`, `orbits`, `rocket`, `architecture`, `
 ## Adaptive labels
 
 Object labels and object-attached controls sit outside projected geometry, use leader lines, and avoid other annotations and interface panels. Tiny objects and crowded buttons become compact markers. Hover or keyboard-focus a marker to reveal its name; click it to inspect or activate it. Zooming in restores full labels. Off-screen annotations and captions without a clear placement are hidden. Agent-positioned screen buttons keep their authored positions.
+
+## Redrawing constructs
+
+Add `"assembly": {"mode":"morph","duration":1.6}` to a scene or step. `morph` is the default and directly reshapes particles. `dissolve` disperses them into the idle field for half the duration, then reforms the new construct. Duration is 0.2 to 8 seconds total. Paused/reduced-motion canvases show new scenes immediately. Replacing the same geometry still runs a redraw; camera changes and notifications do not.
 
 ## Agent camera control
 
@@ -263,6 +301,8 @@ Controls are generated from scene data, not hardcoded per demo. Actions are vali
 | `go_to_step`      | `{"index":0}` or `{"index":-1}` | Navigate a step or overview         |
 | `activate_action` | `{"id":"next"}`                 | Activate a scene-defined control    |
 
+Additional MCP tools: `create_session({name})`, `list_sessions({})`, `get_capabilities({})`, `validate_scene(full-scene-fields)`, `list_history({session_id})`, and `restore_history({session_id,id})`. All scene/camera/action/step/history tools accept `session_id`. Retain the returned session ID throughout one conversation.
+
 Tool responses include the canvas URL and current state. A successful tool response confirms the server accepted a scene; it does not prove the browser rendered it. Use a browser screenshot or ask the user to inspect the visuals when visual accuracy matters.
 
 ### Local HTTP API
@@ -276,6 +316,14 @@ Tool responses include the canvas URL and current state. A successful tool respo
 - `POST /api/camera`: validated camera settings.
 - `POST /api/step`: `{"index":0}` (or -1 for overview).
 - `POST /api/action`: `{"id":"scene-action-id"}`.
+- `GET /api/sessions` and `POST /api/sessions`: list canvases or create one with optional `{name}`.
+- `GET /api/capabilities`: full guide, current schema, and limits.
+- `POST /api/validate`: validate scene JSON without drawing.
+- `GET /api/history`: history summaries for this session.
+- `POST /api/restore`: `{id:"history-id"}`.
+- `POST /api/shutdown`: stop the local server for all canvases on the port.
+
+Session-scoped endpoints use `?session=ID`; omission uses the local sandbox.
 
 POST requests require `Content-Type: application/json`. The server binds to `127.0.0.1` and rejects foreign Host/Origin headers. No CORS access is enabled. It is intended for trusted local tools; other local processes can access it. There are no runtime cloud requests, telemetry, or API keys. npm needs network access to install dependencies.
 
@@ -283,9 +331,9 @@ POST requests require `Content-Type: application/json`. The server binds to `127
 
 Included: 24,000 morphing construct particles plus a 14,000-point world-space dust field, eleven procedural shapes and custom point clouds, per-object rotation, directed connection animation, orbit/zoom, object labels and descriptions, camera focus, nine examples, CLI, MCP, and installable skills.
 
-Current limits: one shared in-memory scene per port, last update wins, no persistence, no semantic object generation, no imported mesh or splat files, no physical simulation, and no pixel-perfect recreation of the reference image. Particle assignment between different shapes is a simple deterministic mapping; it can produce crossing trajectories. Large scenes share a fixed particle budget.
+Current limits: updates to the same session are serialized and the last accepted update wins, no semantic object generation, no imported mesh or splat files, no physical simulation, and no pixel-perfect recreation of the reference image. Particle assignment between different shapes is a simple deterministic mapping; it can produce crossing trajectories. Large scenes share a fixed particle budget.
 
-Next directions: mesh-to-particle sampling, better spatial particle matching, scene timelines, session isolation, and optional generated 3D assets. These are roadmap items, not shipped capabilities.
+Next directions: mesh-to-particle sampling, better spatial particle matching, scene timelines, and optional generated 3D assets. These are roadmap items, not shipped capabilities.
 
 ## Development
 
@@ -304,6 +352,9 @@ Source layout:
 - `web/particle-field.js`: surrounding 3D dust, depth attenuation, and distance-scale visibility.
 - `src/`: validated scene contract, local HTTP server, MCP tools.
 - `src/state.js`: pure state transitions and the action registry.
+- `src/sessions.js`: session isolation, serialized updates, bounded history, and atomic persistence.
+- `src/capabilities.js`: agent discovery from the maintained schema and skill reference.
+- `web/history.js` and `web/particle-transition.js`: history controls and redraw behavior.
 - `bin/`: CLI and skill installer.
 - `skills/dream-forge/`: portable agent instructions and scene reference.
 - `examples/`: scenes an agent can use immediately.

@@ -31,7 +31,7 @@ function run(args, options = {}) {
 
 test('HTTP scene lifecycle, CLI, streaming, validation, and local origin restrictions', async () => {
   const port = 14317,
-    server = await startServer(port);
+    server = await startServer(port, { persist: false });
   try {
     assert.equal((await request('health', undefined, port)).app, 'dream-forge');
     assert.equal((await request('state', undefined, port)).scene.objects.length, 0);
@@ -107,16 +107,22 @@ test('MCP starts a canvas and exposes working tools', async () => {
   const transport = new StdioClientTransport({
     command: process.execPath,
     args: [cli, 'mcp'],
-    env: { ...process.env, DREAM_FORGE_PORT: '14318' },
+    env: {
+      ...process.env,
+      DREAM_FORGE_PORT: '14318',
+      DREAM_FORGE_PERSIST: '0',
+      DREAM_FORGE_SERVER_MODE: 'process',
+    },
     stderr: 'pipe',
   });
   const client = new Client({ name: 'dream-forge-test', version: '1.0.0' });
   try {
     await client.connect(transport);
-    assert.equal((await client.listTools()).tools.length, 7);
+    assert.equal((await client.listTools()).tools.length, 13);
     const result = await client.callTool({ name: 'show_scene', arguments: example });
     assert.ok(!result.isError);
     assert.equal(JSON.parse(result.content[0].text).scene.objects.length, 3);
+    const sessionId = JSON.parse(result.content[0].text).session.id;
     const focused = await client.callTool({ name: 'focus_object', arguments: { id: 'api' } });
     assert.equal(JSON.parse(focused.content[0].text).focus, 'api');
     const view = await client.callTool({
@@ -125,12 +131,62 @@ test('MCP starts a canvas and exposes working tools', async () => {
     });
     assert.ok(!view.isError);
     assert.equal(JSON.parse(view.content[0].text).camera.auto_rotate, true);
+    const capabilities = await client.callTool({ name: 'get_capabilities', arguments: {} });
+    assert.ok(!capabilities.isError);
+    assert.equal(JSON.parse(capabilities.content[0].text).limits.objects, 24);
+    const preflight = await client.callTool({ name: 'validate_scene', arguments: example });
+    assert.equal(JSON.parse(preflight.content[0].text).valid, true);
+    const second = new Client({ name: 'second-agent', version: '1.0.0' });
+    try {
+      await second.connect(
+        new StdioClientTransport({
+          command: process.execPath,
+          args: [cli, 'mcp'],
+          env: {
+            ...process.env,
+            DREAM_FORGE_PORT: '14318',
+            DREAM_FORGE_PERSIST: '0',
+            DREAM_FORGE_SERVER_MODE: 'shared',
+          },
+        }),
+      );
+      const empty = JSON.parse(
+        (await second.callTool({ name: 'get_scene', arguments: {} })).content[0].text,
+      );
+      assert.notEqual(empty.session.id, sessionId);
+      assert.equal(empty.scene.objects.length, 0);
+      const created = JSON.parse(
+        (
+          await second.callTool({
+            name: 'create_session',
+            arguments: { name: 'Explicit conversation' },
+          })
+        ).content[0].text,
+      );
+      assert.equal(created.history.length, 0);
+      await second.callTool({
+        name: 'show_scene',
+        arguments: { session_id: created.session.id, title: 'Other conversation', objects: [] },
+      });
+      assert.equal((await request('state', undefined, 14318, sessionId)).scene.objects.length, 3);
+      const history = JSON.parse(
+        (
+          await second.callTool({
+            name: 'list_history',
+            arguments: { session_id: created.session.id },
+          })
+        ).content[0].text,
+      );
+      assert.equal(history.history.length, 1);
+    } finally {
+      await second.close();
+    }
     const rejected = await client.callTool({
       name: 'show_scene',
       arguments: { ...example, connections: [{ from: 'missing', to: 'api' }] },
     });
     assert.equal(rejected.isError, true);
-    assert.equal((await request('state', undefined, 14318)).scene.objects.length, 3);
+    assert.equal((await request('state', undefined, 14318, sessionId)).scene.objects.length, 3);
     const walkthrough = JSON.parse(
       await readFile(new URL('../examples/walkthrough.json', import.meta.url), 'utf8'),
     );
@@ -149,7 +205,7 @@ test('MCP starts a canvas and exposes working tools', async () => {
     assert.ok(!question.isError);
     assert.equal(JSON.parse(question.content[0].text).interactions.at(-1).type, 'notify');
     await client.callTool({ name: 'clear_canvas', arguments: {} });
-    assert.equal((await request('state', undefined, 14318)).scene.objects.length, 0);
+    assert.equal((await request('state', undefined, 14318, sessionId)).scene.objects.length, 0);
   } finally {
     await client.close();
   }
@@ -169,9 +225,55 @@ test('skill installation works from another project and preserves existing insta
         /name: dream-forge/,
       );
       assert.equal((await run(['install-skill', agent, 'project'], { cwd })).code, 1);
+      assert.equal((await run(['install-skill', agent, 'project', '--update'], { cwd })).code, 0);
     }
   } finally {
     await rm(cwd, { recursive: true, force: true });
+  }
+});
+
+test('the production MCP daemon survives clients and keeps separate process canvases', async () => {
+  const port = 14320;
+  const connect = async () => {
+    const client = new Client({ name: 'daemon-client', version: '1.0.0' });
+    await client.connect(
+      new StdioClientTransport({
+        command: process.execPath,
+        args: [cli, 'mcp'],
+        env: {
+          ...process.env,
+          DREAM_FORGE_PORT: String(port),
+          DREAM_FORGE_PERSIST: '0',
+          DREAM_FORGE_SERVER_MODE: 'daemon',
+        },
+        stderr: 'pipe',
+      }),
+    );
+    return client;
+  };
+  let first, second;
+  try {
+    first = await connect();
+    const shown = JSON.parse(
+      (await first.callTool({ name: 'show_scene', arguments: example })).content[0].text,
+    );
+    await first.close();
+    first = null;
+    assert.equal((await request('health', undefined, port)).version, '0.4.0');
+    second = await connect();
+    const fresh = JSON.parse(
+      (await second.callTool({ name: 'get_scene', arguments: {} })).content[0].text,
+    );
+    assert.notEqual(fresh.session.id, shown.session.id);
+    assert.equal(fresh.scene.objects.length, 0);
+    assert.equal(
+      (await request('state', undefined, port, shown.session.id)).scene.objects.length,
+      3,
+    );
+  } finally {
+    await first?.close();
+    await second?.close();
+    await request('shutdown', {}, port).catch(() => {});
   }
 });
 

@@ -55,6 +55,18 @@ Focus: `focus_object({"id":"api"})`. Frame all: `focus_object({"id":null})`. Rea
 
 CLI equivalent: write the scene as a UTF-8 JSON file and run `dream-forge show <file>`, then `dream-forge focus api`. To reset, run `dream-forge clear`. Port defaults to 4317; `DREAM_FORGE_PORT` must match the running server.
 
+## Sessions, redraws, and history
+
+A fresh conversation uses `create_session({name:"Explanation"})`, which returns `session.id`, empty objects/history, and an isolated URL. Supply `session_id` on every subsequent MCP tool call. Each MCP process also has a private default canvas, but hosts can share processes; explicit IDs provide conversation isolation. `list_sessions` can find a requested existing canvas. Do not reset an existing session unless the user requests it.
+
+CLI: `session new Explanation` returns the ID. Then use `show scene.json --session ID`, `camera right --session ID`, `history --session ID`, and `restore HISTORY_ID --session ID`. `DREAM_FORGE_SESSION` is an alternative for one dedicated shell. Omitting it uses the shared `local` sandbox. HTTP requests use `?session=ID` on the API URL; the browser uses the same query on its page URL.
+
+Every scene snapshot supports `assembly: {mode:"morph",duration:1.6}`. Mode is morph (default) or dissolve; duration is 0.2 to 8 seconds total. Morph interpolates into the new geometry. Dissolve spends half the duration dispersing into idle particles and half rebuilding. Pause/reduced motion snaps new scenes to the final construct. Same-geometry redraws still run the requested assembly animation. Camera changes and notifications do not trigger redraws.
+
+Each accepted scene, clear, or step change saves a history snapshot. Camera changes and notify actions do not create history entries. `list_history({session_id:ID})` returns summary IDs; `restore_history({session_id:ID,id:HISTORY_ID})` restores the geometry, authored sequence, step, and saved camera without removing newer history. The browser's History drawer also lists saved canvases. Up to 50 entries and 16 MiB of snapshots are retained per canvas; oldest entries are removed first. Current state and history are persisted in the configured local data directory by default, including across server restarts. Fresh random sessions remain empty even if other canvases are saved.
+
+`get_capabilities` returns this guide and the current JSON schema. `validate_scene` checks the complete scene without mutating state/history; geometry and cross-reference checks go beyond JSON structural validation. In the CLI, `validate scene.json` runs locally without a server. Include session_id in MCP arguments, not inside a scene JSON file submitted through the CLI.
+
 ## Camera
 
 `set_camera({"view":"right","target_id":"api","zoom":1.5})` automatically fits the API from its right side. Presets: front, back, left, right, top, bottom, isometric. Optional yaw/pitch are absolute degrees, with pitch limited to ±89.5. Zoom is 0.1 to 10 relative to fit. Optional auto_rotate (boolean), speed (degrees/second, -90 to 90), transition (0 to 5 seconds; 0 snaps). Omitted target_id is null (all objects). Commands replace settings. Manual input interrupts orbit; reduced motion/pause stops it.

@@ -14,7 +14,13 @@
       <div id="viewport" aria-label="Interactive 3D particle canvas"><div id="labels"></div></div>
       <header>
         <a class="brand" href="/">dream forge<span>A canvas for agent imagination</span></a>
-        <div id="connection" role="status">Connecting</div>
+        <div class="session-controls">
+          <span id="session-label">Local canvas</span>
+          <button id="history-toggle" aria-expanded="false" aria-controls="history-panel">
+            History (0)
+          </button>
+          <div id="connection" role="status">Connecting</div>
+        </div>
       </header>
       <section class="caption" aria-live="polite">
         <h1 id="title">A space for your next thought</h1>
@@ -24,6 +30,12 @@
         <button id="close-detail" aria-label="Close object details">×</button>
         <h2 id="detail-title"></h2>
         <p id="detail-body"></p>
+      </aside>
+      <aside id="history-panel" hidden aria-label="Scene history">
+        <h2>Scene history</h2>
+        <div id="history-list"></div>
+        <h2 class="saved-canvases-heading">Saved canvases</h2>
+        <div id="session-list"></div>
       </aside>
       <footer>
         <div id="agent-controls" aria-label="Agent-authored controls" hidden></div>

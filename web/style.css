@@ -57,6 +57,82 @@ header {
 #connection.live {
   color: var(--accent);
 }
+.session-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  pointer-events: auto;
+}
+#session-label {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  color: var(--muted);
+}
+#history-toggle {
+  font-size: 10px;
+  padding: 5px 8px;
+}
+#history-panel {
+  position: absolute;
+  z-index: 4;
+  top: 80px;
+  left: 24px;
+  width: min(260px, calc(100% - 48px));
+  max-height: 55dvh;
+  overflow-y: auto;
+  background: #0b111af0;
+  border: 1px solid #2a3c47;
+  padding: 16px;
+  border-radius: 8px;
+}
+#history-panel h2 {
+  font-size: 14px;
+  margin: 0 0 12px;
+}
+#history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+#history-list button {
+  text-align: left;
+  font-size: 11px;
+}
+#history-list button[aria-current='true'] {
+  border-color: var(--accent);
+}
+#history-list p {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+#history-panel .saved-canvases-heading {
+  margin-top: 20px;
+}
+#session-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+#session-list a {
+  color: var(--muted);
+  font-size: 11px;
+  text-decoration: none;
+}
+#session-list a:hover {
+  color: var(--accent);
+}
+@media (max-width: 600px) {
+  #session-label {
+    display: none;
+  }
+  .session-controls {
+    gap: 6px;
+  }
+}
 .caption {
   position: absolute;
   left: 24px;

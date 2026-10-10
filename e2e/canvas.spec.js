@@ -62,6 +62,61 @@ async function assertClearAnnotations(page, expected) {
     }
 }
 
+test('conversation canvases start empty, isolate updates, and keep restorable redraw history', async ({
+  page,
+  context,
+  request,
+}) => {
+  const create = async (name) =>
+    (await (await request.post('/api/sessions', { data: { name } })).json()).session.id;
+  const firstId = await create('Claude session');
+  const secondId = await create('Codex session');
+  const second = await context.newPage();
+  await page.goto(`/?session=${firstId}`);
+  await second.goto(`/?session=${secondId}`);
+  for (const tab of [page, second]) {
+    await expect(tab.locator('#title')).toHaveText('A space for your next thought');
+    await expect(tab.locator('.label')).toHaveCount(0);
+    await expect(tab.locator('#history-toggle')).toHaveText('History (0)');
+  }
+  const firstScene = {
+    title: 'Initial construct',
+    objects: [{ id: 'part', shape: 'sphere', label: 'First part' }],
+    assembly: { mode: 'morph', duration: 0.4 },
+  };
+  await request.post(`/api/scene?session=${firstId}`, { data: firstScene });
+  await expect(page.locator('#title')).toHaveText('Initial construct');
+  await expect(second.locator('#title')).toHaveText('A space for your next thought');
+  const redraw = {
+    title: 'Rebuilt construct',
+    objects: [{ id: 'part', shape: 'gear', label: 'New part' }],
+    assembly: { mode: 'dissolve', duration: 2 },
+  };
+  await page.waitForTimeout(450);
+  await request.post(`/api/scene?session=${firstId}`, { data: redraw });
+  await expect(page.locator('canvas')).toHaveAttribute('data-assembly', 'dissolving');
+  await expect(page.locator('canvas')).toHaveAttribute('data-assembly', 'reforming');
+  await expect(page.locator('canvas')).toHaveAttribute('data-assembly', 'settled');
+  // An identical redraw must still animate rather than being skipped as unchanged geometry.
+  await request.post(`/api/scene?session=${firstId}`, { data: redraw });
+  await expect(page.locator('canvas')).toHaveAttribute('data-assembly', 'dissolving');
+  await expect(page.locator('#history-toggle')).toHaveText('History (3)');
+  await page.locator('#history-toggle').click();
+  await page.getByRole('button', { name: 'Initial construct', exact: true }).click();
+  await expect(page.locator('#title')).toHaveText('Initial construct');
+  await expect(page.locator('#history-list button')).toHaveCount(3);
+  await expect(page.locator('#session-list a')).toHaveCount(3); // local + the two conversations
+  await expect(second.locator('.label')).toHaveCount(0);
+  await expect(page.locator('canvas')).toHaveAttribute('data-assembly', 'settled');
+  await page.waitForTimeout(600);
+  await page.screenshot({ path: 'test-results/session-history.png' });
+  await second.screenshot({ path: 'test-results/fresh-session.png' });
+  await page.reload();
+  await expect(page.locator('#title')).toHaveText('Initial construct');
+  await expect(page.locator('#history-toggle')).toHaveText('History (3)');
+  await second.close();
+});
+
 test('adaptive annotations keep solar and dense engineering overviews clear', async ({
   page,
   request,
