@@ -19,7 +19,7 @@ npm ci
 npm start
 ```
 
-Open **http://127.0.0.1:4317**. Keep the terminal running. Use the compact construct selector to explore **Stone doorway**, **Branching tree**, **Gear assembly**, **Planet system**, **Rocket**, **Request flow**, **Double helix**, or **Guided explanation**. Drag to orbit, scroll to zoom, and click an object label for details. **Reset view** resets camera zoom and rotation to fit every construct on screen. **Dissolve** returns to the idle field; **Pause motion** stops particle animation. Reduced-motion preferences start the canvas paused. Constructs stay centered and take most of the viewport. Small captions and controls sit along the bottom. Surrounding dust occupies 3D space and reveals deeper layers as you zoom out.
+Open **http://127.0.0.1:4317**. Keep the terminal running. Use the compact construct selector to explore **Stone doorway**, **Branching tree**, **Gear assembly**, **Planet system**, **Rocket**, **Request flow**, **Double helix**, **Solar system**, or **Guided explanation**. Drag to orbit, scroll to zoom, and click an object label for details. **Reset view** resets camera zoom and rotation to fit every construct on screen. **Dissolve** returns to the idle field; **Pause motion** stops particle animation. Reduced-motion preferences start the canvas paused. Constructs stay centered and take most of the viewport. Small captions and controls sit along the bottom. Surrounding dust occupies 3D space and reveals deeper layers as you zoom out.
 
 In a second terminal, from the repository:
 
@@ -141,7 +141,7 @@ For a custom MCP port, add `--env DREAM_FORGE_PORT=4320` to `codex mcp add`, or 
 
 Supported shapes: `sphere`, `box`, `torus`, `cylinder`, `cone`, `arch`, `helix`, `tree`, `gear`, `rocket`, `ruins`, and `pointcloud`.
 
-Each object has a unique `id` (letters, numbers, underscores, hyphens; maximum 64 characters), `shape`, optional `label`, `description`, `position` `[x,y,z]` (each coordinate -100 to 100), uniform `scale` (0.1 to 12), hex `color`, and Euler XYZ `rotation` in radians (default `[0,0,0]`). Defaults: position `[0,0,0]`, scale `1`, color `#70e0ed`, empty label and description. The Y axis points up.
+Each object has a unique `id` (letters, numbers, underscores, hyphens; maximum 64 characters), `shape`, optional `label`, `description`, `position` `[x,y,z]` (each coordinate -100 to 100), uniform `scale` (0.1 to 12), hex `color`, and Euler XYZ `rotation` in radians (default `[0,0,0]`). Defaults: position `[0,0,0]`, scale `1`, color `#70e0ed`, empty label and description. The Y axis points up. Set `show_label: false` on supporting geometry to hide its label without removing its particles.
 
 Scenes support up to 24 objects and 48 connections. Connections reference existing object IDs and show directed particle flow from `from` to `to`. `show` replaces the entire scene. Preserve IDs and positions when expanding an explanation. Invalid scenes are rejected without changing the current scene. There is no arbitrary JavaScript execution in scene payloads.
 
@@ -167,7 +167,7 @@ For agent-defined geometry, use `shape: "pointcloud"` and provide `points`, an a
 }
 ```
 
-Demo names: `portal`, `tree`, `mechanism`, `orbits`, `rocket`, `architecture`, `helix`, and `walkthrough`. Example JSON files are shared by the browser selector and CLI, so either interface produces the same scene.
+Demo names: `portal`, `tree`, `mechanism`, `orbits`, `rocket`, `architecture`, `helix`, `solar-system`, and `walkthrough`. Example JSON files are shared by the browser selector and CLI, so either interface produces the same scene.
 
 ## Agent camera control
 
@@ -277,7 +277,7 @@ POST requests require `Content-Type: application/json`. The server binds to `127
 
 ## First-version scope
 
-Included: 24,000 morphing construct particles plus a 14,000-point world-space dust field, eleven procedural shapes and custom point clouds, per-object rotation, directed connection animation, orbit/zoom, object labels and descriptions, camera focus, eight examples, CLI, MCP, and installable skills.
+Included: 24,000 morphing construct particles plus a 14,000-point world-space dust field, eleven procedural shapes and custom point clouds, per-object rotation, directed connection animation, orbit/zoom, object labels and descriptions, camera focus, nine examples, CLI, MCP, and installable skills.
 
 Current limits: one shared in-memory scene per port, last update wins, no persistence, no semantic object generation, no imported mesh or splat files, no physical simulation, and no pixel-perfect recreation of the reference image. Particle assignment between different shapes is a simple deterministic mapping; it can produce crossing trajectories. Large scenes share a fixed particle budget.
 

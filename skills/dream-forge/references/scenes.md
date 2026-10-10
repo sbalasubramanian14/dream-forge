@@ -7,6 +7,7 @@ Object fields:
 - `id`: unique letters, numbers, underscores or hyphens, max 64 characters.
 - `shape`: `sphere`, `box`, `torus`, `cylinder`, `cone`, `arch`, `helix`, `tree`, `gear`, `rocket`, `ruins`, or `pointcloud`.
 - `label`: max 120 characters, default empty.
+- `show_label`: boolean, default true. Set false for supporting geometry such as orbit paths or ring disks to avoid label clutter.
 - `description`: max 2000 characters, default empty. Shown when focused.
 - `position`: `[x,y,z]`, each coordinate between -100 and 100; default `[0,0,0]`. Y is up.
 - `scale`: uniform size multiplier, 0.1 to 12, default 1.

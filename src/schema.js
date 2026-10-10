@@ -26,6 +26,7 @@ export const objectSchema = z
       .max(64),
     shape: z.enum(shapeNames),
     label: z.string().max(120).default(''),
+    show_label: z.boolean().default(true),
     description: z.string().max(2000).default(''),
     position: vector.default([0, 0, 0]),
     scale: z.number().min(0.1).max(12).default(1),

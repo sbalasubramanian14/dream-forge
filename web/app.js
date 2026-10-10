@@ -221,9 +221,11 @@ function apply(state) {
       element.className = 'label';
       element.textContent = o.label || o.id;
       element.addEventListener('click', () => focus(o.id));
-      labelLayer.append(element);
-      labels.push({ element, point: anchor });
-      bounds.expandByPoint(anchor);
+      if (o.show_label !== false) {
+        labelLayer.append(element);
+        labels.push({ element, point: anchor });
+        bounds.expandByPoint(anchor);
+      }
       objectBounds.set(o.id, bounds);
     });
     for (const connection of current.connections) {

@@ -158,7 +158,7 @@ a:focus-visible {
   left: 0;
   top: 0;
   pointer-events: auto;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, 0);
   color: #b9e8ed;
   background: #07111ed9;
   border: 1px solid #284952;
