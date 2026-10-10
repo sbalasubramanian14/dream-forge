@@ -13,7 +13,7 @@ If only shell access is available, use `dream-forge show <scene.json>` after sta
 
 ## Choosing a construct
 
-Choose shapes that help understanding: boxes for components, cylinders for storage, spheres for actors, toruses for cycles, helixes for paired sequences, and arches for doorways. Use a few readable objects before expanding. Supply labels and descriptions; an attractive shape alone is not an explanation.
+Choose shapes that help understanding: boxes for components, cylinders for storage, spheres for actors, toruses for cycles, helixes for paired sequences, and arches for doorways. For richer constructs use `tree`, `gear`, `rocket`, or `ruins`. Compose parts with Euler XYZ `rotation` in radians. Use `pointcloud` with explicit local points for geometry beyond the built-in catalog. Use a few readable objects before expanding. Supply labels and descriptions; an attractive shape alone is not an explanation.
 
 Space objects explicitly with `position`. All omitted positions default to the origin and overlap. Keep stable IDs and positions across follow-up scenes. Use connections only for relationships you can explain, and note that animated flow runs from `from` to `to`.
 

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from '/OrbitControls.js';
 import { randomGenerator, shapePoint } from '/geometry.js';
+import { constructs } from '/catalog.js';
 
 const $ = id => document.getElementById(id);
 const viewport=$('viewport'), labelLayer=$('labels');
@@ -28,7 +29,7 @@ const ambientCount=2800,ambientRandom=randomGenerator(909),ambientSamples=Array.
 const ambientGeometry=new THREE.BufferGeometry();ambientGeometry.setAttribute('position',new THREE.BufferAttribute(new Float32Array(ambientCount*3),3));
 const ambient=new THREE.Points(ambientGeometry,new THREE.PointsMaterial({color:'#376c7b',size:.07,map:texture,transparent:true,opacity:.5,blending:THREE.AdditiveBlending,depthWrite:false}));
 ambient.frustumCulled=false;camera.add(ambient);scene.add(camera);
-let labels=[], edges=[], flows=[];
+let labels=[], edges=[], flows=[], objectBounds=new Map();
 const flowGroup=new THREE.Group();scene.add(flowGroup);
 async function send(path,body) {try {const response=await fetch(`/api/${path}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const result=await response.json();if(!response.ok)throw new Error(result.error);$('error').hidden=true;return result;}catch(e){error(e.message);}}
 function focus(id) {send('focus',{id});}
@@ -36,12 +37,9 @@ function updateProjection() {
   camera.aspect=innerWidth/innerHeight;
   const caption=document.querySelector('.caption').getBoundingClientRect();
   const top=document.querySelector('header').getBoundingClientRect().bottom+16;
-  const hasConstruct=Boolean(current?.objects.length);
-  const sideLayout=hasConstruct&&innerWidth>=1000;
-  const left=sideLayout?caption.right+36:32;
-  const right=innerWidth-32;
-  const bottom=Math.max(top+80,sideLayout||!hasConstruct?document.querySelector('footer').getBoundingClientRect().top-24:caption.top-24);
-  const centerX=(left+right)/2;
+  const left=32,right=innerWidth-32;
+  const bottom=Math.max(top+80,caption.top-24);
+  const centerX=innerWidth/2;
   const centerY=(top+bottom)/2;
   camera.setViewOffset(innerWidth,innerHeight,innerWidth/2-centerX,innerHeight/2-centerY,innerWidth,innerHeight);
   camera.updateProjectionMatrix();
@@ -54,12 +52,7 @@ function frame(id=null) {
   const objects=current?.objects || [];
   const selected=id?objects.filter(o=>o.id===id):objects;
   const bounds=new THREE.Box3();
-  const extents={sphere:[1,1,1],box:[1,1,1],torus:[1.3,.3,1.3],cylinder:[1,1,1],cone:[1,1,1],arch:[1.43,1.78,.325],helix:[1,2,1]};
-  for(const o of selected) {
-    const v=new THREE.Vector3(...o.position),half=new THREE.Vector3(...extents[o.shape]).multiplyScalar(o.scale);
-    bounds.expandByPoint(v.clone().add(half));bounds.expandByPoint(v.clone().sub(half));
-    bounds.expandByPoint(new THREE.Vector3(o.position[0],o.position[1]-(o.shape==='helix'?2.2:1.8)*o.scale,o.position[2]));
-  }
+  for(const o of selected) bounds.union(objectBounds.get(o.id));
   if(!id) for(const connection of current?.connections||[]) {
     const a=objects.find(o=>o.id===connection.from),b=objects.find(o=>o.id===connection.to);
     const middle=new THREE.Vector3(...a.position).lerp(new THREE.Vector3(...b.position),.5);middle.y+=1.6;bounds.expandByPoint(middle);
@@ -69,6 +62,7 @@ function frame(id=null) {
   const tanHalf=Math.tan(THREE.MathUtils.degToRad(camera.fov/2));
   const distance=Math.max(4,Math.max(size.y*innerHeight/area.height,size.x*innerHeight/area.width)/(2*tanHalf)*1.06+size.z/2);
   controls.maxDistance=Math.max(180,distance*3);
+  camera.far=Math.max(1000,distance*6);camera.updateProjectionMatrix();
   targetLook=center; targetCamera=center.clone().add(new THREE.Vector3(0,0,distance));
   if(paused) {camera.position.copy(targetCamera);controls.target.copy(center);targetCamera=null;targetLook=null;}
   const o=objects.find(o=>o.id===id);$('detail').hidden=!o;
@@ -81,15 +75,23 @@ function apply(state) {
   current=state.scene;
   $('title').textContent=current.title;$('explanation').textContent=current.explanation;
   if(changed) {
-    labelLayer.replaceChildren();labels=[];edges=[];
+    labelLayer.replaceChildren();labels=[];edges=[];objectBounds=new Map();
     for(const flow of flows) {flow.geometry.dispose();flow.material.dispose();}flows=[];flowGroup.clear();
     targets.set(idle);for(let i=0;i<count;i++)desiredColors.set([.16,.38,.48],i*3);
     const per=current.objects.length?Math.floor(count*.85/current.objects.length):0;
     current.objects.forEach((o,objectIndex)=>{
       let seed=0;for(const c of o.id)seed=(seed*31+c.charCodeAt(0))|0;
-      const rng=randomGenerator(seed), color=new THREE.Color(o.color);
-      for(let i=0;i<per;i++) {const j=(objectIndex*per+i)*3,p=shapePoint(o.shape,i,rng);for(let k=0;k<3;k++)targets[j+k]=p[k]*o.scale+o.position[k];const brightness=.55+rng()*.65;desiredColors.set([color.r*brightness,color.g*brightness,color.b*brightness],j);}
-      const element=document.createElement('button');element.className='label';element.textContent=o.label||o.id;element.addEventListener('click',()=>focus(o.id));labelLayer.append(element);labels.push({element,point:new THREE.Vector3(o.position[0],o.position[1]-(o.shape==='helix'?2.2:1.8)*o.scale,o.position[2])});
+      const rng=randomGenerator(seed), color=new THREE.Color(o.color),bounds=new THREE.Box3(),rotation=new THREE.Euler(...o.rotation);
+      for(let i=0;i<per;i++) {
+        const j=(objectIndex*per+i)*3,p=o.shape==='pointcloud'?o.points[Math.floor(i/per*o.points.length)]:shapePoint(o.shape,i,rng);
+        const world=new THREE.Vector3(...p).multiplyScalar(o.scale).applyEuler(rotation).add(new THREE.Vector3(...o.position));
+        targets.set(world.toArray(),j);bounds.expandByPoint(world);
+        const brightness=.55+rng()*.65;desiredColors.set([color.r*brightness,color.g*brightness,color.b*brightness],j);
+      }
+      if(o.shape==='pointcloud')for(const point of o.points)bounds.expandByPoint(new THREE.Vector3(...point).multiplyScalar(o.scale).applyEuler(rotation).add(new THREE.Vector3(...o.position)));
+      const anchor=bounds.getCenter(new THREE.Vector3());anchor.y=bounds.min.y-.4;
+      const element=document.createElement('button');element.className='label';element.textContent=o.label||o.id;element.addEventListener('click',()=>focus(o.id));labelLayer.append(element);labels.push({element,point:anchor});
+      bounds.expandByPoint(anchor);objectBounds.set(o.id,bounds);
     });
     for(const connection of current.connections) {
       const a=current.objects.find(o=>o.id===connection.from),b=current.objects.find(o=>o.id===connection.to);
@@ -99,18 +101,18 @@ function apply(state) {
       const points=new THREE.Points(g,new THREE.PointsMaterial({color:'#70e0ed',size:.13,map:texture,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false}));points.userData.curve=curve;points.frustumCulled=false;flowGroup.add(points);flows.push(points);
       const element=document.createElement('span');element.className='edge-label';element.textContent=connection.label;labelLayer.append(element);edges.push({element,point:curve.getPoint(.5)});
     }
-    document.querySelectorAll('[data-demo]').forEach(b=>b.classList.toggle('active',({portal:'An idea takes shape',architecture:'Follow a request',helix:'Two paths, intertwined'})[b.dataset.demo]===current.title));
+    $('construct').value=constructs.find(c=>(c.primaryId||c.id)===current.objects[0]?.id)?.id||'';
     if(paused) {positions.set(targets);colors.set(desiredColors);geometry.attributes.position.needsUpdate=true;geometry.attributes.color.needsUpdate=true;}
   }
   currentFocus=state.focus;frame(currentFocus);
 }
 const events=new EventSource('/api/events');events.onopen=()=>{$('connection').textContent='Canvas connected';$('connection').className='live';$('error').hidden=true;};events.onerror=()=>{$('connection').textContent='Reconnecting…';$('connection').className='';};events.onmessage=event=>{try{apply(JSON.parse(event.data));}catch(e){error(`Unable to display scene: ${e.message}`);}};
-const demos={
- portal:{title:'An idea takes shape',explanation:'A doorway assembled from light. Drag to explore the arch, or let an agent reshape this space.',objects:[{id:'portal',shape:'arch',label:'The doorway',description:'A procedural particle arch inspired by the original visual reference.',scale:2.4}]},
- architecture:{title:'Follow a request',explanation:'A browser sends a request to the API. The API queries the database. Follow the moving light between each construct.',objects:[{id:'browser',shape:'box',label:'Browser',description:'The interface sends a request.',position:[-5,0,0],scale:1.2},{id:'api',shape:'sphere',label:'API',description:'The server applies business logic.',scale:1.2},{id:'database',shape:'cylinder',label:'Database',description:'Persistent storage queried by the API.',position:[5,0,0],scale:1.2}],connections:[{from:'browser',to:'api',label:'request'},{from:'api',to:'database',label:'query'}]},
- helix:{title:'Two paths, intertwined',explanation:'A stylized double helix. Rotate to explore the structure. An illustrative construct, rather than a molecular simulation.',objects:[{id:'helix',shape:'helix',label:'Double helix',description:'Two spiraling strands joined by rungs.',scale:1.8}]}
+for(const construct of constructs) {const option=document.createElement('option');option.value=construct.id;option.textContent=construct.label;$('construct').append(option);}
+$('construct').onchange=async()=>{
+  const name=$('construct').value;if(!name)return;
+  try {const response=await fetch(`/examples/${name}.json`);if(!response.ok)throw new Error('Unable to load construct');await send('scene',await response.json());$('construct').value=name;}
+  catch(e){error(e.message);}
 };
-document.querySelectorAll('[data-demo]').forEach(button=>button.addEventListener('click',()=>send('scene',demos[button.dataset.demo])));
 $('reset').onclick=()=>send('clear',{});$('frame').onclick=()=>focus(null);$('close-detail').onclick=()=>focus(null);
 function motionButton() {$('motion').textContent=paused?'Resume motion':'Pause motion';$('motion').setAttribute('aria-pressed',String(paused));}
 $('motion').onclick=()=>{paused=!paused;motionButton();};motionButton();

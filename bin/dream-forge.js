@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startServer } from '../src/server.js';
 import { request, getPort } from '../src/client.js';
+import { constructs } from '../web/catalog.js';
 
 const [command = 'help', ...args] = process.argv.slice(2);
 const root = fileURLToPath(new URL('../', import.meta.url));
@@ -19,7 +20,7 @@ try {
     console.log(JSON.stringify(await request('scene', JSON.parse(await readFile(resolve(args[0]), 'utf8'))), null, 2));
   } else if (command === 'demo') {
     const name = args[0] || 'architecture';
-    if (!['architecture', 'portal', 'helix'].includes(name)) throw new Error('Demo must be architecture, portal, or helix');
+    if (!constructs.some(c=>c.id===name)) throw new Error(`Demo must be ${constructs.map(c=>c.id).join(', ')}`);
     console.log(JSON.stringify(await request('scene', JSON.parse(await readFile(`${root}/examples/${name}.json`, 'utf8'))), null, 2));
   } else if (command === 'focus') {
     if (!args[0]) throw new Error('Usage: dream-forge focus <object-id|all>');
@@ -38,6 +39,6 @@ try {
     await cp(`${root}/skills/dream-forge`, target, {recursive: true, errorOnExist: true, force: false});
     console.log(`Installed Dream Forge skill at ${target}`);
   } else if (command === 'help' || command === '--help') {
-    console.log('Dream Forge\n\nstart                   Serve the local canvas\nmcp                     Start stdio MCP and a canvas if needed\nshow <scene.json>       Replace the scene\ndemo [architecture|portal|helix]\nfocus <id|all>          Focus an object or frame all\nclear                   Dissolve into the idle field\nstatus                  Read the current scene\ninstall-skill <codex|claude> [project|user]\n\nDREAM_FORGE_PORT sets the port (default 4317).');
+    console.log('Dream Forge\n\nstart                   Serve the local canvas\nmcp                     Start stdio MCP and a canvas if needed\nshow <scene.json>       Replace the scene\ndemo <portal|tree|mechanism|orbits|rocket|architecture|helix>\nfocus <id|all>          Focus an object or frame all\nclear                   Dissolve into the idle field\nstatus                  Read the current scene\ninstall-skill <codex|claude> [project|user]\n\nDREAM_FORGE_PORT sets the port (default 4317).');
   } else {throw new Error(`Unknown command: ${command}. Run dream-forge --help.`);}
 } catch (error) {console.error(`Dream Forge: ${error.message}${error.cause ? '. Start the canvas with dream-forge start.' : ''}`); process.exitCode = 1;}

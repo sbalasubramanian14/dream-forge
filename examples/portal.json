@@ -1,6 +1,6 @@
 {
   "title": "An idea takes shape",
   "explanation": "A doorway assembled from light. This procedural arch demonstrates a physical construct forming from a scattered particle field.",
-  "objects": [{"id": "portal", "shape": "arch", "label": "The doorway", "description": "A procedural point-cloud arch, inspired by the original visual reference.", "position": [0, 0, 0], "scale": 2.4}],
+  "objects": [{"id": "portal", "shape": "ruins", "label": "The doorway", "description": "A stone arch with steps, repeated masonry bands, and weathered columns.", "position": [0, 0, 0], "scale": 2.4}],
   "connections": []
 }

@@ -19,7 +19,7 @@ npm ci
 npm start
 ```
 
-Open **http://127.0.0.1:4317**. Keep the terminal running. Try **Doorway**, **Request flow**, or **Double helix**. Drag to orbit, scroll to zoom, and click an object label for details. **Reset view** resets camera zoom and rotation to fit every construct on screen. **Dissolve** returns to the idle field; **Pause motion** stops particle animation. Reduced-motion preferences start the canvas paused. Wide screens place constructs beside the caption to use more vertical space; narrow screens place them above it. Background dots cover the viewport independently of construct zoom.
+Open **http://127.0.0.1:4317**. Keep the terminal running. Use the compact construct selector to explore **Stone doorway**, **Branching tree**, **Gear assembly**, **Planet system**, **Rocket**, **Request flow**, or **Double helix**. Drag to orbit, scroll to zoom, and click an object label for details. **Reset view** resets camera zoom and rotation to fit every construct on screen. **Dissolve** returns to the idle field; **Pause motion** stops particle animation. Reduced-motion preferences start the canvas paused. Constructs stay centered and take most of the viewport. Small captions and controls sit along the bottom. Background dots cover the viewport independently of construct zoom.
 
 In a second terminal, from the repository:
 
@@ -97,7 +97,7 @@ Restart the agent, then invoke `$dream-forge` in Codex or `/dream-forge` in Clau
 | `dream-forge start` | Serve the browser canvas in the foreground |
 | `dream-forge mcp` | Run the stdio MCP server and start/reuse a canvas |
 | `dream-forge show scene.json` | Validate and replace the complete scene |
-| `dream-forge demo [architecture\|portal\|helix]` | Display a bundled example |
+| `dream-forge demo <name>` | Display a bundled example |
 | `dream-forge focus object-id` | Focus one construct |
 | `dream-forge focus all` | Frame all constructs |
 | `dream-forge clear` | Dissolve into the idle particle field |
@@ -138,11 +138,19 @@ For a custom MCP port, add `--env DREAM_FORGE_PORT=4320` to `codex mcp add`, or 
 }
 ```
 
-Supported shapes: `sphere`, `box`, `torus`, `cylinder`, `cone`, `arch`, `helix`.
+Supported shapes: `sphere`, `box`, `torus`, `cylinder`, `cone`, `arch`, `helix`, `tree`, `gear`, `rocket`, `ruins`, and `pointcloud`.
 
-Each object has a unique `id` (letters, numbers, underscores, hyphens; maximum 64 characters), `shape`, optional `label`, `description`, `position` `[x,y,z]` (each coordinate -100 to 100), uniform `scale` (0.1 to 12), and hex `color`. Defaults: position `[0,0,0]`, scale `1`, color `#70e0ed`, empty label and description. The Y axis points up.
+Each object has a unique `id` (letters, numbers, underscores, hyphens; maximum 64 characters), `shape`, optional `label`, `description`, `position` `[x,y,z]` (each coordinate -100 to 100), uniform `scale` (0.1 to 12), hex `color`, and Euler XYZ `rotation` in radians (default `[0,0,0]`). Defaults: position `[0,0,0]`, scale `1`, color `#70e0ed`, empty label and description. The Y axis points up.
 
 Scenes support up to 24 objects and 48 connections. Connections reference existing object IDs and show directed particle flow from `from` to `to`. `show` replaces the entire scene. Preserve IDs and positions when expanding an explanation. Invalid scenes are rejected without changing the current scene. There is no arbitrary JavaScript execution in scene payloads.
+
+For agent-defined geometry, use `shape: "pointcloud"` and provide `points`, an array of 1 to 12,000 local `[x,y,z]` coordinates (each coordinate -100 to 100). Scale and rotation are applied before the object is placed in the scene. The full JSON payload is limited to 1 MiB. Points are sampled across the fixed particle budget, so large clouds may be displayed at lower density.
+
+```json
+{"title":"A custom construct","objects":[{"id":"custom","shape":"pointcloud","label":"Agent geometry","points":[[-2,-1,0],[2,-1,0],[0,2,0],[0,0,1]],"rotation":[0,0.7,0]}]}
+```
+
+Demo names: `portal`, `tree`, `mechanism`, `orbits`, `rocket`, `architecture`, and `helix`. Example JSON files are shared by the browser selector and CLI, so either interface produces the same scene.
 
 ### MCP tools
 
@@ -168,11 +176,11 @@ POST requests require `Content-Type: application/json`. The server binds to `127
 
 ## First-version scope
 
-Included: 24,000 morphing particles, seven procedural shapes, directed connection animation, orbit/zoom, object labels and descriptions, camera focus, three examples, CLI, MCP, and installable skills.
+Included: 24,000 morphing construct particles plus a viewport-wide ambient field, eleven procedural shapes and custom point clouds, per-object rotation, directed connection animation, orbit/zoom, object labels and descriptions, camera focus, seven examples, CLI, MCP, and installable skills.
 
-Current limits: one shared in-memory scene per port, last update wins, no persistence, no semantic object generation, no imported meshes or splat files, no physical simulation, and no pixel-perfect recreation of the reference image. Particle assignment between different shapes is a simple deterministic mapping; it can produce crossing trajectories. Large scenes share a fixed particle budget.
+Current limits: one shared in-memory scene per port, last update wins, no persistence, no semantic object generation, no imported mesh or splat files, no physical simulation, and no pixel-perfect recreation of the reference image. Particle assignment between different shapes is a simple deterministic mapping; it can produce crossing trajectories. Large scenes share a fixed particle budget.
 
-Next directions: mesh-to-particle sampling, better spatial particle matching, scene timelines, richer construct primitives, session isolation, and optional generated 3D assets. These are roadmap items, not shipped capabilities.
+Next directions: mesh-to-particle sampling, better spatial particle matching, scene timelines, session isolation, and optional generated 3D assets. These are roadmap items, not shipped capabilities.
 
 ## Development
 
@@ -199,7 +207,7 @@ npm run test:browser
 npm run preview
 ```
 
-The browser suite opens Chromium visibly and checks scene changes, focus, orbit/zoom controls, pause, dissolve, state restoration, and a mobile viewport with reduced motion. Screenshots are written to the ignored `test-results/` folder. The preview command leaves a headed browser open until you close it. It starts a local server if needed.
+The browser suite starts its own server on port **4319**, opens Chromium visibly, and checks scene changes, focus, orbit/zoom controls, pause, dissolve, state restoration, custom geometry, the richer catalog, and a mobile viewport with reduced motion. It does not modify the live preview on port 4317. Screenshots are written to the ignored `test-results/` folder. The preview command leaves a headed browser open until you close it. It starts a local server if needed. Refresh or reopen existing preview tabs after updating the code to load the new renderer.
 
 See [AGENTS.md](AGENTS.md) for implementation conventions. Dependencies are locked in `package-lock.json`. GitHub Actions runs tests on Windows and Linux with Node 22.
 

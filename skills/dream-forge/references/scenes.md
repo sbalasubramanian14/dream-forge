@@ -5,12 +5,14 @@ Call `show_scene` with `title`, `explanation`, `objects`, and `connections`. Tit
 Object fields:
 
 - `id`: unique letters, numbers, underscores or hyphens, max 64 characters.
-- `shape`: `sphere`, `box`, `torus`, `cylinder`, `cone`, `arch`, or `helix`.
+- `shape`: `sphere`, `box`, `torus`, `cylinder`, `cone`, `arch`, `helix`, `tree`, `gear`, `rocket`, `ruins`, or `pointcloud`.
 - `label`: max 120 characters, default empty.
 - `description`: max 2000 characters, default empty. Shown when focused.
 - `position`: `[x,y,z]`, each coordinate between -100 and 100; default `[0,0,0]`. Y is up.
 - `scale`: uniform size multiplier, 0.1 to 12, default 1.
 - `color`: six-digit hex, default `#70e0ed`.
+- `rotation`: Euler XYZ angles in radians, default `[0,0,0]`.
+- `points`: required only for `pointcloud`; 1 to 12,000 local `[x,y,z]` coordinates. Compose agent-generated geometry as data, not executable code. Keep the full payload below 1 MiB.
 
 Connection fields: `from`, `to` (existing IDs), optional `label` (max 120 characters). Flows move from source to destination.
 

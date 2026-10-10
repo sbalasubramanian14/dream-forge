@@ -9,7 +9,9 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { startServer } from '../src/server.js';
 import { request } from '../src/client.js';
-import { shapePoint, randomGenerator } from '../web/geometry.js';
+import { shapePoint, randomGenerator, shapeNames } from '../web/geometry.js';
+import { sceneSchema } from '../src/schema.js';
+import { constructs } from '../web/catalog.js';
 
 const cli=fileURLToPath(new URL('../bin/dream-forge.js',import.meta.url));
 const example=JSON.parse(await readFile(new URL('../examples/architecture.json',import.meta.url),'utf8'));
@@ -31,7 +33,7 @@ test('HTTP scene lifecycle, CLI, streaming, validation, and local origin restric
     await assert.rejects(request('focus',{id:'missing'},port),/Unknown/);
     const blocked=await fetch(`http://127.0.0.1:${port}/api/clear`,{method:'POST',headers:{Origin:'https://example.com','Content-Type':'application/json'},body:'{}'});assert.equal(blocked.status,403);
     const unsupported=await fetch(`http://127.0.0.1:${port}/api/clear`,{method:'POST',body:'{}'});assert.equal(unsupported.status,415);
-    const demo=await run(['demo','portal'],{env:{...process.env,DREAM_FORGE_PORT:String(port)}});assert.equal(demo.code,0,demo.stderr);assert.equal(JSON.parse(demo.stdout).scene.objects[0].shape,'arch');
+    const demo=await run(['demo','portal'],{env:{...process.env,DREAM_FORGE_PORT:String(port)}});assert.equal(demo.code,0,demo.stderr);assert.equal(JSON.parse(demo.stdout).scene.objects[0].shape,'ruins');
     assert.equal((await request('clear',{},port)).scene.objects.length,0);
     for(const file of ['/','/app.js','/three.js','/three.core.js','/OrbitControls.js','/geometry.js','/style.css'])assert.equal((await fetch(`http://127.0.0.1:${port}${file}`)).status,200,file);
   } finally {server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
@@ -63,5 +65,13 @@ test('skill installation works from another project and preserves existing insta
 });
 
 test('all procedural shapes produce finite samples',()=>{
-  for(const shape of ['sphere','box','torus','cylinder','cone','arch','helix']) {const random=randomGenerator();for(let i=0;i<1000;i++){const p=shapePoint(shape,i,random);assert.equal(p.length,3);assert.ok(p.every(Number.isFinite),shape);}}
+  for(const shape of shapeNames.filter(s=>s!=='pointcloud')) {const random=randomGenerator();for(let i=0;i<1000;i++){const p=shapePoint(shape,i,random);assert.equal(p.length,3);assert.ok(p.every(Number.isFinite),shape);}}
+});
+
+test('all catalog scenes validate and custom point clouds require explicit geometry',async()=>{
+  for(const construct of constructs)sceneSchema.parse(JSON.parse(await readFile(new URL(`../examples/${construct.id}.json`,import.meta.url),'utf8')));
+  assert.throws(()=>sceneSchema.parse({objects:[{id:'custom',shape:'pointcloud'}]}),/requires points/);
+  const custom=sceneSchema.parse({objects:[{id:'custom',shape:'pointcloud',points:[[0,0,0],[1,2,3]],rotation:[0,1,0]}]});
+  assert.equal(custom.objects[0].points.length,2);
+  assert.throws(()=>sceneSchema.parse({objects:[{id:'bad',shape:'sphere',points:[[0,0,0]]}]}),/only supported/);
 });
