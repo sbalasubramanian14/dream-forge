@@ -24,7 +24,7 @@ test('particle canvas assembles, updates, focuses, orbits, pauses, and dissolves
   await expect(page.locator('#detail')).toBeHidden();
   await page.mouse.move(720,360);await page.mouse.down();await page.mouse.move(950,420,{steps:12});await page.mouse.up();
   await page.mouse.wheel(0,-200);
-  await page.getByRole('button',{name:'Frame all',exact:true}).click();
+  await page.getByRole('button',{name:'Reset view',exact:true}).click();
   await page.getByRole('button',{name:'Pause motion',exact:true}).click();
   await expect(page.getByRole('button',{name:'Resume motion',exact:true})).toHaveAttribute('aria-pressed','true');
   await page.getByRole('button',{name:'Double helix',exact:true}).click();
@@ -63,17 +63,18 @@ test('canvas follows window size and refits when resizing or recovering from zoo
     })).toEqual(viewport);
     const label=await page.locator('.label').boundingBox();
     const caption=await page.locator('.caption').boundingBox();
-    expect(label.y).toBeGreaterThan(0);expect(label.y+label.height).toBeLessThan(caption.y);
+    expect(label.y).toBeGreaterThan(0);
+    expect(label.x>=caption.x+caption.width||label.y+label.height<caption.y).toBe(true);
     const nav=await page.locator('nav').boundingBox();
     expect(nav.x+nav.width).toBeLessThanOrEqual(viewport.width);expect(nav.y+nav.height).toBeLessThanOrEqual(viewport.height);
     expect(await page.evaluate(()=>document.documentElement.scrollHeight<=innerHeight)).toBe(true);
   }
   await page.setViewportSize({width:1280,height:620});
   await page.mouse.move(640,230);await page.mouse.wheel(0,-1200);
-  await page.getByRole('button',{name:'Frame all',exact:true}).click();
+  await page.getByRole('button',{name:'Reset view',exact:true}).click();
   await expect.poll(async()=>{
     const label=await page.locator('.label').boundingBox(),caption=await page.locator('.caption').boundingBox();
-    return label.y>0&&label.y+label.height<caption.y;
+    return label.y>0&&(label.x>=caption.x+caption.width||label.y+label.height<caption.y);
   }).toBe(true);
   await page.waitForTimeout(250);
   await page.screenshot({path:'test-results/laptop-framing.png'});

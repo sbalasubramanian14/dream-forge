@@ -23,19 +23,31 @@ const dotCanvas=document.createElement('canvas');dotCanvas.width=64;dotCanvas.he
 const texture=new THREE.CanvasTexture(dotCanvas);
 const material=new THREE.PointsMaterial({size:.105,map:texture,vertexColors:true,transparent:true,opacity:.85,blending:THREE.AdditiveBlending,depthWrite:false});
 const cloud=new THREE.Points(geometry,material);cloud.frustumCulled=false;scene.add(cloud);
+// Camera-local ambient points cover the viewport independently of construct zoom.
+const ambientCount=2800,ambientRandom=randomGenerator(909),ambientSamples=Array.from({length:ambientCount},()=>[ambientRandom()*2-1,ambientRandom()*2-1,12+ambientRandom()*32]);
+const ambientGeometry=new THREE.BufferGeometry();ambientGeometry.setAttribute('position',new THREE.BufferAttribute(new Float32Array(ambientCount*3),3));
+const ambient=new THREE.Points(ambientGeometry,new THREE.PointsMaterial({color:'#376c7b',size:.07,map:texture,transparent:true,opacity:.5,blending:THREE.AdditiveBlending,depthWrite:false}));
+ambient.frustumCulled=false;camera.add(ambient);scene.add(camera);
 let labels=[], edges=[], flows=[];
 const flowGroup=new THREE.Group();scene.add(flowGroup);
 async function send(path,body) {try {const response=await fetch(`/api/${path}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const result=await response.json();if(!response.ok)throw new Error(result.error);$('error').hidden=true;return result;}catch(e){error(e.message);}}
 function focus(id) {send('focus',{id});}
 function updateProjection() {
   camera.aspect=innerWidth/innerHeight;
-  const captionTop=document.querySelector('.caption').getBoundingClientRect().top;
+  const caption=document.querySelector('.caption').getBoundingClientRect();
   const top=document.querySelector('header').getBoundingClientRect().bottom+16;
-  const bottom=Math.max(top+80,captionTop-24);
+  const hasConstruct=Boolean(current?.objects.length);
+  const sideLayout=hasConstruct&&innerWidth>=1000;
+  const left=sideLayout?caption.right+36:32;
+  const right=innerWidth-32;
+  const bottom=Math.max(top+80,sideLayout||!hasConstruct?document.querySelector('footer').getBoundingClientRect().top-24:caption.top-24);
+  const centerX=(left+right)/2;
   const centerY=(top+bottom)/2;
-  camera.setViewOffset(innerWidth,innerHeight,0,innerHeight/2-centerY,innerWidth,innerHeight);
+  camera.setViewOffset(innerWidth,innerHeight,innerWidth/2-centerX,innerHeight/2-centerY,innerWidth,innerHeight);
   camera.updateProjectionMatrix();
-  return {width:Math.max(100,innerWidth-80),height:bottom-top};
+  const attribute=ambientGeometry.attributes.position;
+  ambientSamples.forEach(([x,y,depth],i)=>{const p=new THREE.Vector3(x,y,.5).applyMatrix4(camera.projectionMatrixInverse);p.multiplyScalar(depth/-p.z);attribute.setXYZ(i,p.x,p.y,p.z);});attribute.needsUpdate=true;
+  return {width:Math.max(100,right-left),height:bottom-top};
 }
 function frame(id=null) {
   const area=updateProjection();
@@ -55,7 +67,7 @@ function frame(id=null) {
   const center=selected.length?bounds.getCenter(new THREE.Vector3()):new THREE.Vector3();
   const size=selected.length?bounds.getSize(new THREE.Vector3()):new THREE.Vector3(12,8,10);
   const tanHalf=Math.tan(THREE.MathUtils.degToRad(camera.fov/2));
-  const distance=Math.max(4,Math.max(size.y*innerHeight/area.height,size.x*innerHeight/area.width)/(2*tanHalf)*1.15+size.z/2);
+  const distance=Math.max(4,Math.max(size.y*innerHeight/area.height,size.x*innerHeight/area.width)/(2*tanHalf)*1.06+size.z/2);
   controls.maxDistance=Math.max(180,distance*3);
   targetLook=center; targetCamera=center.clone().add(new THREE.Vector3(0,0,distance));
   if(paused) {camera.position.copy(targetCamera);controls.target.copy(center);targetCamera=null;targetLook=null;}

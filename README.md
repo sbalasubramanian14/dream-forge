@@ -19,7 +19,7 @@ npm ci
 npm start
 ```
 
-Open **http://127.0.0.1:4317**. Keep the terminal running. Try **Doorway**, **Request flow**, or **Double helix**. Drag to orbit, scroll to zoom, and click an object label for details. **Dissolve** returns to the idle field; **Pause motion** stops particle animation. Reduced-motion preferences start the canvas paused.
+Open **http://127.0.0.1:4317**. Keep the terminal running. Try **Doorway**, **Request flow**, or **Double helix**. Drag to orbit, scroll to zoom, and click an object label for details. **Reset view** resets camera zoom and rotation to fit every construct on screen. **Dissolve** returns to the idle field; **Pause motion** stops particle animation. Reduced-motion preferences start the canvas paused. Wide screens place constructs beside the caption to use more vertical space; narrow screens place them above it. Background dots cover the viewport independently of construct zoom.
 
 In a second terminal, from the repository:
 
