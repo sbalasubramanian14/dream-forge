@@ -11,6 +11,7 @@ import { startServer } from '../src/server.js';
 import { request } from '../src/client.js';
 import { shapePoint, randomGenerator, shapeNames } from '../web/geometry.js';
 import { sceneSchema } from '../src/schema.js';
+import { VERSION } from '../src/version.js';
 import { constructs } from '../web/catalog.js';
 
 const cli = fileURLToPath(new URL('../bin/dream-forge.js', import.meta.url));
@@ -118,7 +119,14 @@ test('MCP starts a canvas and exposes working tools', async () => {
   const client = new Client({ name: 'dream-forge-test', version: '1.0.0' });
   try {
     await client.connect(transport);
-    assert.equal((await client.listTools()).tools.length, 13);
+    assert.equal((await client.listTools()).tools.length, 14);
+    const alphabet = await client.callTool({
+      name: 'show_text',
+      arguments: { text: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' },
+    });
+    assert.ok(!alphabet.isError);
+    assert.equal(JSON.parse(alphabet.content[0].text).rows.join(''), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ');
+    assert.ok(alphabet.content[0].text.length < 2000);
     const result = await client.callTool({ name: 'show_scene', arguments: example });
     assert.ok(!result.isError);
     assert.equal(JSON.parse(result.content[0].text).scene.objects.length, 3);
@@ -259,7 +267,7 @@ test('the production MCP daemon survives clients and keeps separate process canv
     );
     await first.close();
     first = null;
-    assert.equal((await request('health', undefined, port)).version, '0.5.0');
+    assert.equal((await request('health', undefined, port)).version, VERSION);
     second = await connect();
     const fresh = JSON.parse(
       (await second.callTool({ name: 'get_scene', arguments: {} })).content[0].text,

@@ -6,3 +6,4 @@ coverage/
 .agents/
 .claude/
 test-results/
+docs/media/*.webm

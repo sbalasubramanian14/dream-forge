@@ -1,6 +1,6 @@
 {
   "name": "@sbalasubramanian14/dream-forge",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "A local particle canvas where AI agents forge explanations into 3D constructs.",
   "type": "module",
   "private": true,
@@ -17,6 +17,9 @@
     "test:browser": "playwright test --headed",
     "preview": "node scripts/preview.js",
     "mcp": "node bin/dream-forge.js mcp",
+    "setup": "node scripts/setup.js",
+    "doctor": "node bin/dream-forge.js doctor",
+    "docs:media": "node scripts/capture-media.js",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

@@ -9,4 +9,5 @@ export const constructs = [
   { id: 'helix', label: 'Double helix' },
   { id: 'walkthrough', label: 'Guided explanation', primaryId: 'assembly' },
   { id: 'aws-eks', label: 'Multi-region EKS request journey', primaryId: 'client' },
+  { id: 'bubble-sort', label: 'Bubble sort walkthrough', primaryId: 'value-5' },
 ];

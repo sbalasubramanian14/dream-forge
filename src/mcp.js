@@ -8,6 +8,7 @@ import { request, getPort, canvasUrl } from './client.js';
 import { startServer } from './server.js';
 import { ensureServer } from './ensure-server.js';
 import { shapeNames } from '../web/geometry.js';
+import { textScene } from './text-scene.js';
 
 export async function startMcp() {
   let ownedServer;
@@ -21,7 +22,7 @@ export async function startMcp() {
     { name: 'dream-forge', version: VERSION },
     {
       instructions:
-        'Before composing scenes, call get_capabilities. Each conversation needs its own create_session and must pass the returned session_id on subsequent tools, especially if the host shares an MCP process across conversations. Fresh sessions start empty. Use validate_scene for preflight and assembly.mode for morph versus dissolve.',
+        'For simple letters/text, create_session then show_text; it generates and validates glyphs internally, so no schema lookup or generator is needed. Before composing custom scenes, call get_capabilities. Each conversation needs its own create_session and must pass the returned session_id on subsequent tools, especially if the host shares an MCP process across conversations. Fresh sessions start empty. Use validate_scene for custom scene preflight and assembly.mode for morph versus dissolve.',
     },
   );
   const wrap = (handler) => async (args) => {
@@ -42,6 +43,23 @@ export async function startMcp() {
       return { isError: true, content: [{ type: 'text', text: error.message }] };
     }
   };
+  server.registerTool(
+    'show_text',
+    {
+      description:
+        'Fast path for particle letters or short text: generates, validates and displays glyphs without custom code or a full schema lookup. Supports A–Z, 0–9, spaces, newlines and - . ? !; lowercase becomes uppercase. Up to 144 characters within 12 rows of 8. Use a fresh conversation session_id or your retained ID. Returns a compact result and canvas URL.',
+      inputSchema: { text: z.string().min(1).max(144), session_id: z.string().optional() },
+    },
+    wrap(async (args, scoped) => {
+      const state = await scoped('scene', textScene(args.text));
+      return {
+        session: state.session,
+        title: state.scene.title,
+        rows: state.scene.objects.map((object) => object.description),
+        revision: state.revision,
+      };
+    }),
+  );
   server.registerTool(
     'show_scene',
     {

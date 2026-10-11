@@ -1,5 +1,11 @@
 # Scene contract
 
+## Fast particle text
+
+For letters or short text, call `show_text({text:"ABCDEFGHIJKLMNOPQRSTUVWXYZ",session_id:ID})` after creating or resuming this conversation's canvas. It generates and validates a complete glyph scene internally and returns a compact result with rows and URL. No custom generator, `validate_scene`, or full schema lookup is needed for this built-in path. CLI equivalent: `text "ABCDEFGHIJKLMNOPQRSTUVWXYZ" --session ID`. Supports uppercase A–Z, digits, spaces, newlines and `- . ? !`; lowercase is rendered uppercase. Limit: 144 characters, arranged in at most 12 rows of 8. Unsupported characters are rejected without changing the canvas.
+
+## Custom scenes
+
 Call `show_scene` with `title`, `explanation`, `objects`, and `connections`. Titles are limited to 160 characters; explanations to 4000. Maximum 24 objects and 48 connections.
 
 Object fields:
