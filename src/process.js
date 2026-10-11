@@ -6,7 +6,7 @@ export function runCommand(command, args = [], { cwd, env = process.env, timeout
   let parameters = args;
   if (process.platform === 'win32' && !command.endsWith('.exe')) {
     const quote = (value) => `'${value.replaceAll("'", "''")}'`;
-    const script = `& ${[command, ...args].map(quote).join(' ')}; if ($null -eq $LASTEXITCODE) { exit 1 }; exit $LASTEXITCODE`;
+    const script = `$ProgressPreference = 'SilentlyContinue'; & ${[command, ...args].map(quote).join(' ')}; if ($null -eq $LASTEXITCODE) { exit 1 }; exit $LASTEXITCODE`;
     executable = 'powershell.exe';
     parameters = [
       '-NoProfile',
