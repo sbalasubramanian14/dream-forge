@@ -331,6 +331,8 @@ POST requests require `Content-Type: application/json`. The server binds to `127
 
 The canvas has no demo dropdown: an agent's explanation stays in place until a scene command changes it. Load bundled examples through `dream-forge demo <name>`, including `aws-eks` for the eight-step multi-region request journey.
 
+Constructs assemble from luminous particles, retain gentle particle motion when formed, and keep a surrounding world-space dust field. Boundary outlines and connection guides stay subtle and appear after assembly, so the particle formation remains the main visual. Pause motion freezes the living particle effect as well as transitions and playback.
+
 - **Rotate / Pan** choose what left-drag does. Right-drag also pans; scroll and +/− zoom. **Fit scene** frames visible objects. Touch supports one-finger rotate/pan and two-finger camera gestures.
 - Click a part or its label to inspect it without moving the camera. **Zoom to selection** moves closer. **Isolate selection** keeps its parents and descendants; Layers → Show everything exits isolation. Picking uses component bounding volumes; large boundaries are selected through their labels.
 - Drag a label to place it yourself. Positions persist locally per browser, session and snapshot/object. More → Reset label positions returns to automatic placement. Manual pins can overlap other labels, so the viewer retains control over them.

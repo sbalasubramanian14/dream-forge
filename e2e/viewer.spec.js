@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { PNG } from 'pngjs';
 
 test('diagram viewer supports inspection, pinned labels, hierarchy, filtering and overview navigation', async ({
   page,
@@ -139,4 +140,47 @@ test('authored traffic journey plays, pauses, changes speed, replays and resets 
   await expect(page.locator('#error')).toBeHidden();
   await page.locator('#step-overview').click();
   await expect(page.locator('#journey-play')).toHaveText('Play request');
+});
+
+test('formed constructs retain visible particle motion and pause freezes the effect', async ({
+  page,
+  request,
+}) => {
+  const id = (
+    await (await request.post('/api/sessions', { data: { name: 'Particle motion QA' } })).json()
+  ).session.id;
+  await request.post('/api/scene?session=' + id, {
+    data: {
+      title: 'Living particle construct',
+      objects: [{ id: 'shape', shape: 'sphere', label: 'Particle sphere', scale: 2 }],
+      assembly: { mode: 'morph', duration: 0.8 },
+    },
+  });
+  await page.goto('/?session=' + id);
+  await expect(page.locator('canvas')).toHaveAttribute('data-assembly', 'settled');
+  await page.locator('#layers-toggle').click();
+  await page.locator('#show-background').uncheck();
+  await page.locator('#layers-toggle').click();
+  const region = { x: 400, y: 180, width: 600, height: 350 };
+  const changed = (a, b) => {
+    const first = PNG.sync.read(a),
+      second = PNG.sync.read(b);
+    let n = 0;
+    for (let i = 0; i < first.data.length; i += 4)
+      if (Math.abs(first.data[i + 1] - second.data[i + 1]) > 8) n++;
+    return n;
+  };
+  const first = await page.screenshot({ clip: region });
+  await page.waitForTimeout(650);
+  const second = await page.screenshot({
+    clip: region,
+    path: 'test-results/living-particle-construct.png',
+  });
+  expect(changed(first, second)).toBeGreaterThan(300);
+  await page.locator('#motion').click();
+  await page.waitForTimeout(250);
+  const paused = await page.screenshot({ clip: region });
+  await page.waitForTimeout(450);
+  const still = await page.screenshot({ clip: region });
+  expect(changed(paused, still)).toBeLessThan(10);
 });

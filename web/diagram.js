@@ -16,6 +16,7 @@ export function createDiagram({ scene, camera, geometry, count }) {
     hovered = null,
     active = null;
   let shown = new Set();
+  let assembled = false;
   const raycaster = new THREE.Raycaster();
   function dispose(group) {
     for (const child of group.children) {
@@ -52,7 +53,8 @@ export function createDiagram({ scene, camera, geometry, count }) {
       helper.material.depthTest = false;
       highlights.add(helper);
     }
-    for (const child of boundaries.children) child.visible = shown.has(child.userData.id);
+    for (const child of boundaries.children)
+      child.visible = assembled && shown.has(child.userData.id);
   }
   function refresh() {
     shown = new Set(
@@ -60,7 +62,8 @@ export function createDiagram({ scene, camera, geometry, count }) {
         .filter((o) => related(o.id) && (o.role !== 'boundary' || filters.boundaries !== false))
         .map((o) => o.id),
     );
-    factors.fill(objects.length ? 0.06 : 1);
+    // Keep free particles around a formed construct; only filtered object ranges disappear.
+    factors.fill(filters.background === false ? 0 : objects.length ? 0.6 : 1);
     for (const range of ranges) factors.fill(shown.has(range.id) ? 1 : 0, range.start, range.end);
     geometry.attributes.visibility.needsUpdate = true;
     refreshHighlight();
@@ -74,11 +77,12 @@ export function createDiagram({ scene, camera, geometry, count }) {
       selected = null;
       hovered = null;
       active = null;
+      assembled = false;
       dispose(boundaries);
       for (const o of objects.filter((o) => o.role === 'boundary')) {
         const helper = new THREE.Box3Helper(bounds.get(o.id), o.color);
         helper.material.transparent = true;
-        helper.material.opacity = 0.65;
+        helper.material.opacity = 0.12;
         helper.material.depthWrite = false;
         helper.userData.id = o.id;
         boundaries.add(helper);
@@ -88,6 +92,12 @@ export function createDiagram({ scene, camera, geometry, count }) {
     filters(value) {
       filters = { ...value };
       refresh();
+    },
+    assembly(ready) {
+      if (assembled === ready) return;
+      assembled = ready;
+      for (const child of boundaries.children)
+        child.visible = assembled && shown.has(child.userData.id);
     },
     isolate(id) {
       isolated = id;

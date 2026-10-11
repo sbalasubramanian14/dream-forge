@@ -71,6 +71,11 @@ for (let i = 0; i < count; i++) {
 const geometry = new THREE.BufferGeometry();
 geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+const motionScales = new Float32Array(count).fill(0.16);
+const phases = Float32Array.from({ length: count }, (_, i) => i * 2.399963);
+geometry.setAttribute('motionScale', new THREE.BufferAttribute(motionScales, 1));
+geometry.setAttribute('phase', new THREE.BufferAttribute(phases, 1));
+const particleUniforms = { particleTime: { value: 0 }, particleMotion: { value: 1 } };
 const dotCanvas = document.createElement('canvas');
 dotCanvas.width = 64;
 dotCanvas.height = 64;
@@ -84,7 +89,7 @@ ctx.fillStyle = glow;
 ctx.fillRect(0, 0, 64, 64);
 const texture = new THREE.CanvasTexture(dotCanvas);
 const material = new THREE.PointsMaterial({
-  size: 0.105,
+  size: 0.125,
   map: texture,
   vertexColors: true,
   transparent: true,
@@ -93,10 +98,17 @@ const material = new THREE.PointsMaterial({
   depthWrite: false,
 });
 material.onBeforeCompile = (shader) => {
-  shader.vertexShader = 'attribute float visibility;\n' + shader.vertexShader;
+  Object.assign(shader.uniforms, particleUniforms);
+  shader.vertexShader =
+    'attribute float visibility;\nattribute float motionScale;\nattribute float phase;\nuniform float particleTime;\nuniform float particleMotion;\n' +
+    shader.vertexShader;
+  shader.vertexShader = shader.vertexShader.replace(
+    '#include <begin_vertex>',
+    '#include <begin_vertex>\ntransformed += vec3(sin(phase + particleTime * 1.1), cos(phase * 1.3 + particleTime * 0.9), sin(phase * 0.7 + particleTime)) * motionScale * particleMotion;',
+  );
   shader.vertexShader = shader.vertexShader.replace(
     '#include <color_vertex>',
-    '#include <color_vertex>\nvColor *= visibility;',
+    '#include <color_vertex>\nvColor *= visibility * (1.0 + 0.18 * sin(phase + particleTime * 1.4) * particleMotion);',
   );
 };
 const particleTransition = createParticleTransition({
@@ -268,7 +280,7 @@ function apply(state) {
   const changed =
     JSON.stringify(display) !== JSON.stringify(current) || state.scene_revision !== sceneRevision;
   current = display;
-  particleField.intensity(current.objects.length ? 0.24 : 0.65);
+  particleField.intensity(current.objects.length ? 0.55 : 0.65);
   history.render(state);
   viewer.render(state);
   $('title').textContent = current.title;
@@ -293,6 +305,7 @@ function apply(state) {
     for (let i = 0; i < count; i++) desiredColors.set([0.16, 0.38, 0.48], i * 3);
     const per = current.objects.length ? Math.floor((count * 0.85) / current.objects.length) : 0;
     const ranges = [];
+    motionScales.fill(0.16);
     current.objects.forEach((o, objectIndex) => {
       let seed = 0;
       for (const c of o.id) seed = (seed * 31 + c.charCodeAt(0)) | 0;
@@ -312,7 +325,7 @@ function apply(state) {
           .add(new THREE.Vector3(...o.position));
         targets.set(world.toArray(), j);
         bounds.expandByPoint(world);
-        const brightness = o.role === 'boundary' ? 1 : 0.75 + rng() * 0.5;
+        const brightness = o.role === 'boundary' ? 1.4 : 0.75 + rng() * 0.5;
         desiredColors.set([color.r * brightness, color.g * brightness, color.b * brightness], j);
       }
       if (o.shape === 'pointcloud')
@@ -324,6 +337,12 @@ function apply(state) {
               .add(new THREE.Vector3(...o.position)),
           );
       const anchor = bounds.getCenter(new THREE.Vector3());
+      const motionScale = THREE.MathUtils.clamp(
+        bounds.getSize(new THREE.Vector3()).length() * 0.008,
+        0.012,
+        0.07,
+      );
+      motionScales.fill(motionScale, objectIndex * per, (objectIndex + 1) * per);
       const element = document.createElement('button');
       element.className = 'label';
       element.textContent = o.label || o.id;
@@ -344,6 +363,7 @@ function apply(state) {
       ranges.push({ id: o.id, start: objectIndex * per, end: (objectIndex + 1) * per });
     });
     diagram.set(current, objectBounds, ranges);
+    geometry.attributes.motionScale.needsUpdate = true;
     for (const connection of current.connections) {
       const a = current.objects.find((o) => o.id === connection.from),
         b = current.objects.find((o) => o.id === connection.to);
@@ -363,7 +383,7 @@ function apply(state) {
               : connection.kind === 'traffic'
                 ? '#ffd28a'
                 : '#70b3bf',
-          size: 0.13,
+          size: 0.19,
           map: texture,
           transparent: true,
           blending: THREE.AdditiveBlending,
@@ -377,7 +397,7 @@ function apply(state) {
         new THREE.LineBasicMaterial({
           color: points.material.color,
           transparent: true,
-          opacity: connection.kind === 'traffic' ? 0.45 : 0.22,
+          opacity: connection.kind === 'traffic' ? 0.14 : 0.08,
           depthWrite: false,
         }),
       );
@@ -487,6 +507,15 @@ function animate(now) {
     p.needsUpdate = true;
   }
   cameraController.update(dt, paused);
+  const assembled = paused || renderer.domElement.dataset.assembly === 'settled';
+  diagram.assembly(assembled);
+  for (const flow of flows) flow.userData.track.visible = flow.visible && assembled;
+  particleUniforms.particleTime.value = elapsed;
+  particleUniforms.particleMotion.value = paused
+    ? 0
+    : renderer.domElement.dataset.assembly === 'settled'
+      ? 1
+      : 0.3;
   journey.update(dt, paused);
   interactionControls.update(camera, innerWidth, innerHeight);
   const reserved = annotationPanels
