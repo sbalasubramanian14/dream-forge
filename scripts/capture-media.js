@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { startServer } from '../src/server.js';
 import { repositoryRoot } from '../src/skill-install.js';
+import { textScene } from '../src/text-scene.js';
 
 const output = join(repositoryRoot, 'docs', 'media');
 await mkdir(output, { recursive: true });
@@ -82,6 +83,13 @@ try {
   await context.close();
   await rm(join(output, 'demo.webm'), { force: true });
   await copyFile(await video.path(), join(output, 'demo.webm'));
+  const alphabetContext = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const alphabetPage = await alphabetContext.newPage();
+  await post('scene', textScene('ABCDEFGHIJKLMNOPQRSTUVWXYZ'));
+  await alphabetPage.goto(`${base}/?session=${session}`);
+  await alphabetPage.waitForTimeout(2500);
+  await alphabetPage.screenshot({ path: join(output, 'alphabet.png') });
+  await alphabetContext.close();
   console.log(`Captured screenshots and demo.webm in ${output}; no browser errors.`);
 } finally {
   await browser?.close();
