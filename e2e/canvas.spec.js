@@ -99,6 +99,7 @@ test('conversation canvases start empty, isolate updates, and keep restorable re
   };
   await page.waitForTimeout(450);
   await request.post(`/api/scene?session=${firstId}`, { data: redraw });
+  await page.bringToFront();
   await expect(page.locator('canvas')).toHaveAttribute('data-assembly', 'dissolving');
   await expect(page.locator('canvas')).toHaveAttribute('data-assembly', 'reforming');
   await expect(page.locator('canvas')).toHaveAttribute('data-assembly', 'settled');
@@ -374,7 +375,14 @@ test('agent camera views, zoom, and orbit work while distant particles stay visi
     }
   }
   const distant = await page.screenshot({ path: 'test-results/extreme-zoom-out.png' });
-  expect(coloredPixels(distant)).toBeGreaterThan(80);
+  await page.getByRole('button', { name: 'Layers', exact: true }).click();
+  await page.locator('#show-background').uncheck();
+  await page.waitForTimeout(150);
+  const withoutDust = await page.screenshot();
+  // Compare the same peripheral region against its own baseline across GPU backends.
+  expect(coloredPixels(distant) - coloredPixels(withoutDust)).toBeGreaterThan(20);
+  await page.locator('#show-background').check();
+  await page.getByRole('button', { name: 'Layers', exact: true }).click();
   await page.getByRole('button', { name: 'Fit scene' }).click();
   await page.getByRole('button', { name: 'Resume motion' }).click();
   await request.post('/api/camera', {

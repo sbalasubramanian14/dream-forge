@@ -3,6 +3,11 @@ import { homedir } from 'node:os';
 import { resolve } from 'node:path';
 
 export const canvasTools = [
+  'get_capabilities',
+  'get_scene',
+  'validate_scene',
+  'list_sessions',
+  'list_history',
   'create_session',
   'show_text',
   'show_scene',

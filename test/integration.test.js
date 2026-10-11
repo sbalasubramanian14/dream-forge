@@ -119,7 +119,14 @@ test('MCP starts a canvas and exposes working tools', async () => {
   const client = new Client({ name: 'dream-forge-test', version: '1.0.0' });
   try {
     await client.connect(transport);
-    assert.equal((await client.listTools()).tools.length, 14);
+    const toolList = (await client.listTools()).tools;
+    assert.equal(toolList.length, 14);
+    for (const tool of toolList.filter((tool) =>
+      ['get_scene', 'get_capabilities', 'list_sessions', 'validate_scene', 'list_history'].includes(
+        tool.name,
+      ),
+    ))
+      assert.equal(tool.annotations.readOnlyHint, true);
     const alphabet = await client.callTool({
       name: 'show_text',
       arguments: { text: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' },

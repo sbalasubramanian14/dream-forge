@@ -13,6 +13,7 @@ Early developer release distributed through GitHub. No npm publication or market
 - Added the 14-step bubble-sort example: 9 comparisons and 4 swaps.
 - Reworked installation, update, uninstall and troubleshooting documentation, with actual screenshots and a reproducible headed recording script.
 - Added setup/diagnostic/text tests and a Linux headed-browser CI job.
+- Kept particle assembly and shader motion on real elapsed time when rendering slows or a tab is in the background.
 
 Scene schema and saved-canvas format are unchanged from 0.5.0. Stop older running servers before reconnecting the new MCP version and refresh browser tabs.
 

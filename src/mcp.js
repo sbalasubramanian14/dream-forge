@@ -87,6 +87,12 @@ export async function startMcp() {
   server.registerTool(
     'get_scene',
     {
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
       description: 'Read the current scene and focused object before updating it.',
       inputSchema: { session_id: z.string().optional() },
     },
@@ -131,6 +137,12 @@ export async function startMcp() {
   server.registerTool(
     'get_capabilities',
     {
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
       description:
         'Read once before using Dream Forge: complete JSON schema, semantic validation rules, all shapes, cameras, actions, steps, session isolation, redraw modes, history, limits, and recommended workflow.',
       inputSchema: {},
@@ -140,6 +152,12 @@ export async function startMcp() {
   server.registerTool(
     'list_sessions',
     {
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
       description:
         'List saved local canvases and their IDs. Resume one only when requested; otherwise create a fresh session. Pass its id as session_id and open the corresponding URL.',
       inputSchema: {},
@@ -149,6 +167,12 @@ export async function startMcp() {
   server.registerTool(
     'validate_scene',
     {
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
       description:
         'Validate and normalize a full scene without changing the canvas or history. Checks geometry and cross-references. A valid scene still needs visual review.',
       inputSchema: { ...sceneFields, session_id: z.string().optional() },
@@ -158,6 +182,12 @@ export async function startMcp() {
   server.registerTool(
     'list_history',
     {
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
       description:
         'List this session?s saved scene/step snapshots. Use restore_history with an entry id to return to it.',
       inputSchema: { session_id: z.string().optional() },

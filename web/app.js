@@ -484,12 +484,13 @@ let last = performance.now(),
   elapsed = 0;
 function animate(now) {
   requestAnimationFrame(animate);
-  const dt = Math.min((now - last) / 1000, 0.05);
+  const frameDelta = Math.max(0, (now - last) / 1000);
+  const dt = Math.min(frameDelta, 0.05);
   last = now;
   if (!paused) {
-    elapsed += dt;
+    elapsed += frameDelta;
     renderer.domElement.dataset.assembly = particleTransition.update(
-      dt,
+      frameDelta,
       paused,
       elapsed,
       !current?.objects.length,
